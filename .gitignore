@@ -1,0 +1,33 @@
+# --- Secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Generated data (synthetic, but treated as real PHI) ---
+data/
+
+# --- Tools downloaded at runtime (Synthea jar) ---
+tools/
+
+# --- Python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# --- AWS / infra local state ---
+cdk.out/
+*.pem

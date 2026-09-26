@@ -1,0 +1,19 @@
+# Keep secrets, data and local junk out of the Docker image.
+.env
+.env.*
+!.env.example
+data/
+tools/
+.git/
+.github/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+tests/
+docs/
+infra/
