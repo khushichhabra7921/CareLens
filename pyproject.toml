@@ -1,0 +1,16 @@
+[project]
+name = "carelens"
+version = "0.1.0"
+description = "Population health analytics with privacy-safe AI reports (synthetic data)"
+requires-python = ">=3.12,<3.13"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# E/F: standard errors, I: import order, B: common bugs, UP: modern syntax
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
