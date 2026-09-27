@@ -91,3 +91,17 @@ deployments are verified with a health check run on the server through SSM.
 
 When AWS confirms: `py -3.12 infra/ops.py start`, `py -3.12 infra/deploy.py --step cloudfront`,
 then `py -3.12 scripts/smoke_test.py <url>` and put the URL here and in the README.
+
+## Verified on 2026-09-27
+
+- Full data load into RDS through the SSM tunnel: 5,881,290 rows, 0 rejected, 2,390 s (mostly
+  the 1.07 GB upload from a home connection); reference date 2025-01-05 and 4,676 name-token
+  hashes, identical to the local load.
+- Continuous deployment: CI passed, then GitHub Actions assumed the deploy role via OIDC, built the
+  ARM image, pushed it to ECR and restarted the app; on-server health check
+  `{"status":"ok","database":"ok"}` (TLS verify-full to RDS).
+- `scripts/smoke_test.py` against the AWS server through an SSM tunnel to port 80: **14/14 checks
+  passed** (all 8 analyses, no count from 1 to 10 in any response, 401 without the admin key,
+  disclaimer banner, CSP), first response 0.8 s.
+- Then stopped (on-demand). Plan state afterwards: FREE, $140.00 credits left (activity credits
+  arriving), expires 2027-03-27.
