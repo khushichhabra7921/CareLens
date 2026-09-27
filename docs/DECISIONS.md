@@ -359,3 +359,19 @@ Short log of why things are the way they are. Newest milestone at the bottom.
   exposed two poor defaults: the readmissions chart opened on the fully suppressed "overall" slice,
   and prevalence opened on asthma only because it's first alphabetically. Charts now open on a
   configured slice (payer, diabetes), or on the first slice with visible values.
+## Milestone 8 (continued): first deployments
+
+- **Three real bugs found and fixed:**
+  1. The deploy workflow never ran: an unquoted `: ` in a step name ("(on-demand: it is
+     usually stopped)") made the YAML invalid. GitHub only says "workflow file issue";
+     parsing it locally with PyYAML pointed to line 69.
+  2. `Not authorized to perform sts:AssumeRoleWithWebIdentity`: this repo's GitHub OIDC tokens
+     use **immutable** subject claims (`repo:owner@<id>/repo@<id>:ref:...`, read with
+     `gh api repos/.../actions/oidc/customization/sub`), not `repo:owner/repo:...`. The trust
+     policy now uses that exact prefix. That's also safer: a deleted and re-created repo with the
+     same name can't assume the role.
+  3. The app got no DB connection: `root certificate file ... rds-global-bundle.pem does not
+     exist`. The M1 `.gitignore` rule `*.pem` (meant for private keys) had silently excluded
+     AWS's public CA bundle, so the image built in CI didn't have it, while local builds did. Added a
+     negation for that one file and a test that deploy-critical files are tracked by git and
+     match their recorded SHA-256.
