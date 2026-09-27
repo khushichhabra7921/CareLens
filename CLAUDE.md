@@ -55,6 +55,10 @@ The full brief is in the owner's Downloads/PROJECT_BRIEF.md. Decisions are logge
 - `NAME_HASH_SALT` is required; name hashes are rebuilt by `load_data.py`. Don't add surnames to `COMMON_WORDS`.
 - Threat model and limitations: `docs/RESPONSIBLE_AI.md`. Keep it in sync with the code.
 
+## CI
+- `.github/workflows/ci.yml`: lint, test (Postgres service, REQUIRE_DB=1, coverage floor 80%), docker smoke, codelens (non-blocking).
+- Pin actions by commit SHA and the runner by version. CI must pass without secrets or a Groq key.
+
 ## Files
 - All text files are UTF-8 without a BOM. Check with `py -3.12 scripts/check_encoding.py`.
 - `data/`, `tools/`, `.env` and `.venv/` are gitignored. Check with `git check-ignore -v <path>`.

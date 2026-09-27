@@ -274,3 +274,31 @@ Short log of why things are the way they are. Newest milestone at the bottom.
   redaction cases, blocking an injected SSN, name, email or UUID, a hallucinated number caught,
   invalid JSON, schema errors, timeouts, HTTP errors and injection text all ending in the fallback, and
   a bad answer then a good one. Coverage of the privacy and LLM modules is 98%. No test calls Groq.
+## Milestone 7: Tests and CI
+
+- **GitHub Actions, 4 jobs, on every push and PR, no secrets needed:** `lint` (ruff, UTF-8 check),
+  `test` (Postgres 16 service container; `db_setup.py`, then the fixture load, then all tests with
+  `REQUIRE_DB=1` so DB tests can't silently skip, and `--cov-fail-under=80` on the privacy/LLM
+  modules), `docker` (image builds; must *refuse* to start without secrets; with them it starts and
+  `/health` returns 503 "database unavailable") and `codelens`.
+- **First real run:** all green. test: 172 passed, 1 skipped (the check against real Synthea
+  headers, since CI deliberately has no generated data), coverage 98.42%, 41 s. docker smoke test
+  passed. CI needed no Groq key.
+- **Supply chain:** third-party actions pinned to full commit SHAs (checkout v7.0.1, setup-python
+  v7.0.0), CodeLens AI pinned to commit `5d87e01`, and the runner pinned to `ubuntu-24.04`
+  (`ubuntu-latest` moves to Ubuntu 26 on 2026-10-19). `permissions: contents: read`; a newer push
+  cancels an older run on the same branch.
+- **CI database passwords are fixed throwaway values** (`ci-only-...`) for a Postgres container
+  that lives for about a minute. The service container needs its password before any step runs,
+  so one fixed value is unavoidable, and they aren't real secrets.
+- **CodeLens AI runs as a non-blocking report** (`continue-on-error`), with its quality gate in
+  the run summary. It scored CareLens 0/100 with 22 High issues, all false positives, with
+  0 real security issues:
+  - 17 x "uses division": `codelens/scanner.py:59` flags every `/`, `//` and `%`, including
+    pathlib joins (`SQL_DIR / "roles.sql"`) and `%` formatting. Suggested fix in CodeLens: skip
+    when either operand is a string literal/f-string, or the right operand is a non-zero number.
+  - 5 x "hardcoded secret" for the `ci-only-...` CI passwords, although the CodeLens README says
+    such placeholders aren't flagged.
+  Correct code wasn't rewritten to suit the tool. Once CodeLens is fixed, remove `continue-on-error`
+  to make it a real gate. Its other notes (218 missing docstrings, 10 functions over 30 lines, 7 with
+  more than 5 arguments) are style; mostly SQL-heavy loaders and test builders.
