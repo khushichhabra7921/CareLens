@@ -30,6 +30,12 @@ The full brief is in the owner's Downloads/PROJECT_BRIEF.md. Decisions are logge
 - Test fixture: edit `tests/fixtures/build_fixture.py`, then run it; never hand-edit `synthea_mini/*.csv`.
 - Local Docker Postgres is on host port **5433** (5432 is taken by another install).
 
+## Database
+- Setup: `py -3.12 scripts/db_setup.py` (`--recreate` after schema changes). Load: `py -3.12 scripts/load_data.py`.
+- Schema DDL in `sql/schema/NNN_*.sql` (applied in order, as `carelens_loader`); roles in `sql/roles.sql` (as admin).
+- Loader transform is `sql/load/transform.sql`: guard casts with ordered `CASE WHEN` branches, never `A OR B`.
+- DB is UTC. Use `127.0.0.1` not `localhost` (IPv6 delay on Windows). Tests use DB `carelens_test`.
+
 ## Files
 - All text files are UTF-8 without a BOM. Check with `py -3.12 scripts/check_encoding.py`.
 - `data/`, `tools/`, `.env` and `.venv/` are gitignored. Check with `git check-ignore -v <path>`.
@@ -38,6 +44,8 @@ The full brief is in the owner's Downloads/PROJECT_BRIEF.md. Decisions are logge
 ```
 py -3.12 -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -r requirements-dev.txt
+docker compose up -d db
+py -3.12 scripts/db_setup.py; py -3.12 scripts/load_data.py
 pytest; ruff check .
 docker compose up --build
 ```

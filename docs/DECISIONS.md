@@ -69,3 +69,53 @@ Short log of why things are the way they are. Newest milestone at the bottom.
   names, missing optional fields, an observation without an encounter, ICD-10, CDT, uninsured). **In M4
   we'll add cohorts larger than 10**, because small-cell suppression would otherwise turn every count into NULL
   and there would be nothing to check by hand.
+## Milestone 3: Postgres schema and loading
+
+- **Four schemas by sensitivity:** `phi` (direct identifiers), `analytics` (clinical, pseudonymized),
+  `app` (reports/audit, filled in M6), `loader` (rejected rows, which can contain PHI). The web app's role
+  can read `analytics` only.
+- **Honest labelling: `analytics` is pseudonymized, not Safe Harbor de-identified.** HHS's Safe Harbor
+  guidance lists county and every date element except the year (admission and discharge dates included) as
+  identifiers. `analytics` keeps service dates and county because the analyses need them. Safe Harbor-level
+  output is enforced at the boundary instead: the API returns only aggregates, small cells are suppressed
+  (M4), and the LLM payload reduces dates to year or month (M6). Name, SSN, driver's licence, passport,
+  street address, city, 5-digit ZIP, lat/lon, birth date and birthplace exist only in `phi`.
+- **Age bands** `0-17, 18-44, 45-64, 65-74, 75-89, 90+`: age at the reference date, or at death for
+  deceased patients. 90+ is one band (Safe Harbor). 65-74, 75-89 and 90+ together give the 65+ group
+  the polypharmacy and flu analyses need.
+- **ZIP3:** `00000` (Synthea's "unknown", 309 patients, all with an empty FIPS too) becomes NULL. The 17
+  low-population 3-digit ZIP areas on the HHS list (2000 Census) become `000`. None are in
+  Massachusetts. Limitation: HHS says to prefer newer Census data when available.
+- **Data minimization:** marital status, income, lifetime expenses, provider names/addresses and payer
+  summary totals are not loaded anywhere, because no analysis needs them.
+- **Every CHECK constraint was tested against the full data first.** Two were dropped because real
+  Synthea rows break them: 57 medications stop a few days before they start (no `stop >= start`
+  check on medications), and 226 observations are exact duplicates (kept, with a generated key).
+- **Roles:** `carelens_loader` owns everything and loads data; `app_readonly` gets SELECT on
+  `analytics` (plus default privileges, so future materialized views are covered) and nothing on `phi` or
+  `loader`. `REVOKE ALL ON DATABASE ... FROM PUBLIC` means no other role can even connect. The app role
+  also can't create temp tables and has a 15s statement timeout. Passwords come from `.env` and are set
+  with `ALTER ROLE ... PASSWORD` using `psycopg.sql.Literal` (safe quoting); they are never in a SQL file.
+- **Database pinned to UTC** (`ALTER DATABASE ... SET timezone = 'UTC'`). `max(start_ts)::date`
+  depends on the session time zone, so without this the reference date could change from machine to machine.
+- **Loader design:** one transaction: COPY each CSV into an all-text temp table, compare the staged count
+  with the csv-module count, TRUNCATE the targets, then `sql/load/transform.sql` validates each row.
+  Valid rows go to the typed tables; invalid ones go to `loader.rejected_rows` with a reason. Finally
+  loaded + rejected must equal the CSV rows for every table, and the reference date must equal the latest
+  loaded encounter, or the whole load rolls back. Result on the full data: 1,196,468 rows, 0 rejected,
+  72.6 s. The reject path is tested with deliberately broken fixture rows.
+- **Evaluation order bug avoided:** SQL doesn't guarantee that `A OR B` evaluates A first, so
+  `NOT pg_input_is_valid(x,'uuid') OR NOT EXISTS (... x::uuid)` could crash on a bad ID. Every guard
+  is its own ordered `CASE WHEN` branch, and empty optional values use `NULLIF(x,'')` before casting.
+- **COPY + FORCE_NOT_NULL:** CSV-mode COPY turns empty fields into NULL. Forcing `''` keeps "empty"
+  handled one way throughout the transform SQL.
+- **Idempotent:** TRUNCATE ... RESTART IDENTITY + reload, so re-running gives identical tables and IDs.
+  Changing the schema itself needs `db_setup.py --recreate` (the data can always be rebuilt from CSV).
+  No migration tool; it's not needed for a rebuildable dataset.
+- **Indexes:** on every foreign key, plus composites for the analysis filters. Measured on the full
+  data: the care-gap benchmark drops from 297.6 ms (parallel seq scan) to 3.0 ms (index-only scan),
+  98x. The "before" run drops the indexes inside a transaction that is rolled back.
+- **Tests use a separate `carelens_test` database**, recreated each session, so tests never touch the
+  full dataset. They skip if Postgres is down, unless `REQUIRE_DB=1` (CI sets it).
+- **`127.0.0.1` instead of `localhost`:** on Windows `localhost` resolves to IPv6 `::1` first. Docker
+  only listens on IPv4, and each refused attempt cost 2.1 s. The test suite went from 287 s to 6.5 s.
