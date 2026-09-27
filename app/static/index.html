@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CareLens</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <!-- Chart.js 4.5.1 (MIT), served from this app. sha256 in app/static/vendor/README.md -->
+  <script src="/static/vendor/chart.umd.min.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <div class="banner" role="note">Synthetic data. Not clinical advice.</div>
+
+  <header class="page-header">
+    <div>
+      <h1>CareLens</h1>
+      <p class="subtitle">Population health analytics on synthetic patients.
+        Every number is an aggregate; counts from 1 to 10 are suppressed.</p>
+      <p class="meta" id="reference-date"></p>
+    </div>
+    <form class="key-form" id="key-form" autocomplete="off">
+      <label for="api-key">Admin API key <span class="hint">(needed to generate reports; kept in this tab only)</span></label>
+      <input id="api-key" type="password" spellcheck="false" placeholder="Paste key">
+    </form>
+  </header>
+
+  <main id="analyses" aria-live="polite">
+    <p class="loading">Loading analyses…</p>
+  </main>
+
+  <dialog id="report-dialog" aria-labelledby="report-title">
+    <div class="banner" role="note">Synthetic data. Not clinical advice.</div>
+    <div class="report-body" id="report-body"></div>
+    <form method="dialog"><button class="button">Close</button></form>
+  </dialog>
+</body>
+</html>
