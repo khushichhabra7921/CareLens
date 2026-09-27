@@ -4,9 +4,13 @@ Usage:  py -3.12 scripts/smoke_test.py https://xxxx.cloudfront.net
         py -3.12 scripts/smoke_test.py http://127.0.0.1:8000
 Exits 1 if any check fails. Never needs the admin key: report creation is only checked to be
 refused without one.
+
+Set SMOKE_ORIGIN_SECRET to send CloudFront's X-Origin-Verify header, to test the AWS server
+directly through an SSM tunnel (bypassing CloudFront). Never pass it on the command line.
 """
 
 import json
+import os
 import sys
 import time
 import urllib.error
@@ -17,8 +21,10 @@ EXPECTED_ANALYSES = 8
 
 def fetch(url: str, method: str = "GET", body: dict | None = None, redirect: bool = True):
     data = json.dumps(body).encode() if body is not None else None
-    request = urllib.request.Request(url, data=data, method=method,
-                                     headers={"Content-Type": "application/json"})
+    headers = {"Content-Type": "application/json"}
+    if os.environ.get("SMOKE_ORIGIN_SECRET"):
+        headers["X-Origin-Verify"] = os.environ["SMOKE_ORIGIN_SECRET"]
+    request = urllib.request.Request(url, data=data, method=method, headers=headers)
     opener = urllib.request.build_opener() if redirect else urllib.request.build_opener(
         NoRedirect())
     try:
