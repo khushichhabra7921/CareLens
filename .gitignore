@@ -31,3 +31,6 @@ Thumbs.db
 # --- AWS / infra local state ---
 cdk.out/
 *.pem
+
+# --- Local Claude Code tooling (preview config) ---
+.claude/
