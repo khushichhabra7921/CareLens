@@ -7,7 +7,8 @@ Steps, all inside ONE transaction (so a failed run leaves the previous data unto
   4. Empty the target tables, then run sql/load/transform.sql, which validates every row,
      inserts the good ones and records the bad ones (with a reason) in loader.rejected_rows.
   5. Check loaded + rejected = CSV rows for every table.
-  6. Rebuild the analysis views in eporting, then commit.
+  6. Rebuild the analysis views in 
+eporting, then commit.
 
 Usage (PowerShell, repo root):
     py -3.12 scripts/load_data.py                                   # data/raw/csv
@@ -23,6 +24,7 @@ import psycopg
 from psycopg import sql
 
 import build_name_hashes
+import db_setup
 import refresh_views
 from common import REPO_ROOT, SQL_DIR, connect, settings
 from synthea_columns import HEADERS
@@ -159,6 +161,9 @@ def main() -> None:
     args = parser.parse_args()
 
     started = time.perf_counter()
+    # Create/verify the database, roles and schema first (idempotent, ~1 s), so a fresh
+    # checkout needs just: docker compose up -d, generate_data.py, load_data.py.
+    db_setup.setup(args.database)
     print(f"Loading {args.csv_dir} into database {args.database} ...")
     try:
         report = load(args.csv_dir.resolve(), args.database)
