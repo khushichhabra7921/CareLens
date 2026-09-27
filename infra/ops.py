@@ -9,6 +9,7 @@ everything at 23:30 IST in case you forget.
 """
 
 import argparse
+import json
 import sys
 import time
 import urllib.error
@@ -48,6 +49,10 @@ def start() -> None:
         "--document-name", "AWS-RunShellScript",
         "--parameters", '{"commands":["systemctl restart carelens"]}')
     url = get_param("PUBLIC_URL")
+    if not url:   # no CloudFront yet: check from the server itself instead
+        print("No public URL yet; checking health on the server...")
+        print(" ", health_on_instance(instance["InstanceId"]))
+        return
     print(f"Waiting for {url}/health ...")
     for _ in range(60):
         try:
@@ -59,6 +64,30 @@ def start() -> None:
             pass
         time.sleep(10)
     print("Not healthy after 10 minutes. Check: py -3.12 infra/ops.py status")
+
+
+HEALTH_CHECK = ("for i in $(seq 1 30); do s=$(aws ssm get-parameter --region ap-south-1 "
+                "--name /carelens/ORIGIN_VERIFY_SECRET --with-decryption --query Parameter.Value "
+                "--output text); curl -fsS -H \"X-Origin-Verify: $s\" http://127.0.0.1/health "
+                "&& exit 0; sleep 2; done; exit 1")
+
+
+def health_on_instance(instance_id: str) -> str:
+    """Run a /health check ON the server through SSM (works without CloudFront). The origin
+    secret is read on the server by its own role and never printed."""
+    command = aws("ssm", "send-command", "--instance-ids", instance_id,
+                  "--document-name", "AWS-RunShellScript",
+                  "--parameters", json.dumps({"commands": [HEALTH_CHECK]}))["Command"]["CommandId"]
+    for _ in range(30):
+        time.sleep(5)
+        try:
+            result = aws("ssm", "get-command-invocation", "--command-id", command,
+                         "--instance-id", instance_id)
+        except AwsError:
+            continue   # the invocation can take a moment to register
+        if result["Status"] not in ("Pending", "InProgress", "Delayed"):
+            return f"{result['Status']}: {result['StandardOutputContent'].strip()[-200:]}"
+    return "timed out waiting for the health check"
 
 
 def stop() -> None:

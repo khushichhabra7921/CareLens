@@ -372,7 +372,9 @@ def managed_policy_id(kind: str, name: str) -> str:
 
 
 def find_distribution() -> dict | None:
-    listing = aws("cloudfront", "list-distributions", region="us-east-1")["DistributionList"]
+    # With no distributions at all the CLI prints nothing, so default to empty.
+    listing = (aws("cloudfront", "list-distributions", region="us-east-1") or {}).get(
+        "DistributionList", {})
     for d in listing.get("Items", []):
         if d["Comment"] == c.CLOUDFRONT_COMMENT:
             return d
@@ -430,6 +432,9 @@ def step_cloudfront() -> None:
 def point_cloudfront_at(origin_dns: str) -> None:
     """After a restart the instance has a new public DNS name: update the origin."""
     d = find_distribution()
+    if d is None:
+        log("No CloudFront distribution yet; nothing to repoint.")
+        return
     current = aws("cloudfront", "get-distribution-config", "--id", d["Id"], region="us-east-1")
     config_, etag = current["DistributionConfig"], current["ETag"]
     origin = config_["Origins"]["Items"][0]
