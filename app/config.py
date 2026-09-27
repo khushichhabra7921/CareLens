@@ -31,11 +31,16 @@ class Settings(BaseSettings):
     # How long analysis results are cached in memory. They only change when data is loaded.
     cache_ttl_seconds: int = 300
 
-    # Optional: without a key, reports use the template fallback.
+    # Secret key for the name-token hashes (must match the one used by build_name_hashes.py).
+    name_hash_salt: SecretStr  # required, no default
+
+    # Optional: without a key and model, reports use the template fallback.
     groq_api_key: SecretStr | None = None
     llm_model: str | None = None
+    llm_timeout_seconds: float = 20
+    llm_max_completion_tokens: int = 1500
 
-    @field_validator("app_db_password", "admin_api_key")
+    @field_validator("app_db_password", "admin_api_key", "name_hash_salt")
     @classmethod
     def reject_placeholders(cls, value: SecretStr) -> SecretStr:
         secret = value.get_secret_value()
@@ -43,12 +48,16 @@ class Settings(BaseSettings):
             raise ValueError("is empty or still a placeholder from .env.example")
         return value
 
-    @field_validator("admin_api_key")
+    @field_validator("admin_api_key", "name_hash_salt")
     @classmethod
-    def require_long_key(cls, value: SecretStr) -> SecretStr:
+    def require_long_secret(cls, value: SecretStr) -> SecretStr:
         if len(value.get_secret_value()) < MIN_API_KEY_LENGTH:
             raise ValueError(f"must be at least {MIN_API_KEY_LENGTH} characters")
         return value
+
+    @property
+    def llm_configured(self) -> bool:
+        return bool(self.groq_api_key and self.groq_api_key.get_secret_value() and self.llm_model)
 
 
 def get_settings() -> Settings:

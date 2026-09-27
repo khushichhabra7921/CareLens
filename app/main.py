@@ -22,6 +22,8 @@ from pydantic import BaseModel, Field
 from app import analyses, reports
 from app.config import get_settings
 from app.db import create_pool
+from app.llm.client import GroqClient
+from app.privacy.redactor import Redactor
 from app.report_schema import ReportRecord
 from app.security import DASHBOARD_CSP, SECURITY_HEADERS, RateLimiter, check_api_key, client_ip
 
@@ -40,6 +42,12 @@ async def lifespan(app: FastAPI):
     app.state.cache = analyses.TTLCache(settings.cache_ttl_seconds)
     app.state.limiter = RateLimiter(settings.reports_rate_limit,
                                     settings.reports_rate_window_seconds)
+    # No Groq key or model -> None, and every report uses the template fallback.
+    app.state.llm = (GroqClient(settings.groq_api_key.get_secret_value(), settings.llm_model,
+                                settings.llm_timeout_seconds, settings.llm_max_completion_tokens)
+                     if settings.llm_configured else None)
+    if app.state.llm is None:
+        log.warning("GROQ_API_KEY or LLM_MODEL not set: reports will use the template fallback")
     yield
     app.state.pool.close()
 
@@ -60,7 +68,8 @@ async def security_headers(request: Request, call_next):
 
 # Objects the app needs. If one is missing, the database schema is out of date
 # (run scripts/db_setup.py) and the app would fail on the first real request.
-REQUIRED_OBJECTS = ["reporting.dataset_info", "reporting.population_overview", "app.reports"]
+REQUIRED_OBJECTS = ["reporting.dataset_info", "reporting.population_overview", "app.reports",
+                    "app.audit_log", "app.name_token_hashes"]
 
 
 @app.get("/health")
@@ -131,7 +140,16 @@ def create_report(body: ReportRequest, request: Request):
     request.app.state.limiter.check(client_ip(request))
     check_api_key(request)
     analysis = _analysis_or_404(body.analysis_id)
-    return reports.create_report(request.app.state.pool, _load(request, analysis))
+    state = request.app.state
+    redactor = state.cache.get_or_set("__redactor__", lambda: Redactor(
+        reports.load_name_hashes(state.pool), state.settings.name_hash_salt.get_secret_value()))
+    try:
+        return reports.create_report(state.pool, _load(request, analysis), redactor, state.llm,
+                                     state.settings.llm_model)
+    except reports.BlockedError:
+        # Fail closed. The audit log has the details; the client only learns that it was blocked.
+        raise HTTPException(status_code=422, detail="Blocked: the data for this report contained "
+                            "a direct identifier, so nothing was sent to the model.") from None
 
 
 @app.get("/api/reports/{report_id}", response_model=ReportRecord)
