@@ -25,7 +25,7 @@ The full brief is in the owner's Downloads/PROJECT_BRIEF.md. Decisions are logge
 - Secrets live only in env vars / `.env` (gitignored). `.env.example` is committed. The app refuses to start if a secret is missing.
 
 ## Data generation
-- `scripts/generate_data.py`: Synthea v4.0.0 pinned + SHA-256; seeds 42; `-r` **and** `-e` 20250101 (without `-e` the output changes daily).
+- `scripts/generate_data.py`: Synthea v4.0.0 pinned + SHA-256; 5,000 living patients by default; seeds 42; `-r` **and** `-e` 20250101 (without `-e` the output changes daily).
 - Follow the real CSV headers, not the wiki (see DECISIONS M2). Don't load payer summary totals; they aren't reproducible.
 - Test fixture: edit `tests/fixtures/build_fixture.py`, then run it; never hand-edit `synthea_mini/*.csv`.
 - Local Docker Postgres is on host port **5433** (5432 is taken by another install).
@@ -41,6 +41,12 @@ The full brief is in the owner's Downloads/PROJECT_BRIEF.md. Decisions are logge
 - Use `analytics.suppress()`, `safe_pct()`, `is_small()`, `total_reveals_small()`; every view has `sort_order` and `suppressed`.
 - Code sets live in `analytics.condition_groups` / `vaccine_groups` (006_reference.sql), never inline guesses.
 - After editing an analysis: `refresh_views.py --rebuild`, update `tests/test_analyses.py`, run `export_findings.py`.
+
+## API and dashboard
+- `app/main.py` routes; `app/analyses.py` allowlist (add a new analysis there too); `app/security.py` key, rate limit, CSP.
+- Frontend in `app/static/`: vanilla JS, `textContent` only (never `innerHTML`), Chart.js vendored in `static/vendor/`.
+- New DB objects the app needs: add to `REQUIRED_OBJECTS` in `app/main.py` and re-run `db_setup.py` on every database.
+- `tests/test_api.py::test_no_endpoint_returns_row_level_patient_data` must list every route.
 
 ## Files
 - All text files are UTF-8 without a BOM. Check with `py -3.12 scripts/check_encoding.py`.

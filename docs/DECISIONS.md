@@ -180,3 +180,50 @@ Short log of why things are the way they are. Newest milestone at the bottom.
 - **Lesson from this milestone:** a failed scripted edit emptied `tests/test_roles.py` to 0 bytes,
   and the suite still said "49 passed", because an empty test file doesn't fail. Caught by looking
   at which tests ran, not just the pass count.
+## Dataset change (before M5): 5,000 living patients
+
+- **Owner's decision after M4:** regenerate with `-p 5000` (now the script's default) because at 1,000
+  too many headline cells were suppressed. Result: 5,722 patients (5,000 alive + deceased),
+  5,881,290 rows loaded, 0 rejected; generation 5 min, load 6.4 min. With it, the population
+  overview has 0 suppressed cells (so the M4 "race = native can be subtracted out" example no longer
+  applies to this data, though the risk remains in principle), and the care gaps, frequent ED users
+  and 65+ totals are all shown.
+- **Reference date is 2025-01-05, after the `-e 20250101` end date.** Synthea simulates in 7-day
+  steps (`generate.timestep = 604800000` ms), so the last step can run a few days past the end date.
+  Consistent with the definition "latest encounter start", so nothing else changes.
+- **Index benchmark on the larger data:** 254,083.5 ms without indexes vs 6.8 ms with, about 37,000x. The plan
+  shows why: without the index the planner re-scans 4.27 M observations once per hypertensive patient
+  (`loops=1278`). On the 1,000-patient data it had chosen a different plan (98x). Plans change as
+  data grows.
+
+## Milestone 5: API and dashboard
+
+- **Endpoints:** `/health`, `/api/analyses`, `/api/analyses/{id}`, `POST /api/reports`,
+  `/api/reports/{id}`, and `/` (dashboard). Analysis ids come from an allowlist in `app/analyses.py`;
+  view names reach SQL only through `sql.Identifier`, and values only as query parameters.
+- **Titles and questions are stored as a COMMENT on each view** (copied from the SQL header by
+  `refresh_views.py`), so the app shows them without shipping the SQL files. The SQL stays the
+  single source of truth.
+- **In-memory TTL cache (5 min)** for analysis results. They only change when data is loaded. It's
+  per-process, which is fine for one small server.
+- **`POST /api/reports`:** per-IP rate limit (5 per 10 min by default) checked *before* the API key,
+  so failed key guesses also count. The key is compared with `secrets.compare_digest` (constant time)
+  and must be 20+ characters or the app refuses to start. In M5 the report comes from a rule-based
+  template that only cites numbers copied from the data; M6 puts the LLM pipeline in front of it.
+  Limitation: behind a proxy or load balancer, every client would share the proxy's IP (M8 decides
+  this for the real deployment).
+- **Reports are stored in `app.reports`;** the app role may SELECT and INSERT there but not UPDATE
+  or DELETE, so a report can't be altered through the app.
+- **`/health` checks the schema too** (`to_regclass` on the objects the app needs) and returns 503
+  "schema out of date". Found in browser testing: `app.reports` existed in the test database but not
+  in the main one, because setup hadn't been re-run after adding the table. The tests couldn't catch it,
+  since they build a fresh database each time.
+- **No row-level data test:** calls every API route, and fails if a route is added without being
+  covered. It checks that no fixture patient id, encounter id, SSN, address, birth date or name
+  (names as whole words) appears in any response.
+- **Dashboard:** one HTML page, vanilla JS, Chart.js 4.5.1 vendored (hash verified against jsdelivr's
+  published hash) so the Content-Security-Policy can be `script-src 'self'`. All API text goes in via
+  `textContent`, never `innerHTML`. The admin key lives in page memory only (not localStorage).
+  Single-row results are stat tiles, not one-bar charts. Every chart has a table view, and suppressed
+  cells are labelled. The two chart colours passed the dataviz colour-blindness validator in light
+  and dark mode. Checked in the browser at 1280 px and 375 px (no horizontal scroll).
