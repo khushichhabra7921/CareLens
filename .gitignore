@@ -31,6 +31,8 @@ Thumbs.db
 # --- AWS / infra local state ---
 cdk.out/
 *.pem
+# ...except AWS's public RDS CA bundle, which the Docker image needs (not a secret).
+!app/certs/rds-global-bundle.pem
 
 # --- Local Claude Code tooling (preview config) ---
 .claude/
