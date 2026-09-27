@@ -114,11 +114,22 @@ Numbers describe Synthea's simulation, not real-world rates.
 - **SQL:** 8 analyses as plain `.sql` files with question/method/assumptions/limitations headers,
   window functions (LEAD for readmissions), materialized views, CHECK/FK constraints tested
   against the real data before being added.
-- **Tests:** 176 tests (hand-computed fixture cohorts for every analysis, role privileges, every
+- **Tests:** 178 tests (hand-computed fixture cohorts for every analysis, role privileges, every
   endpoint checked for leaked identifiers, a mocked LLM for every failure path); 98% coverage of
   the privacy and LLM code; CI with a Postgres service container, a Docker smoke test and
   SHA-pinned actions.
 - **Decisions** (and mistakes caught along the way): [docs/DECISIONS.md](docs/DECISIONS.md).
+
+## Credits and third-party code
+
+- [Synthea](https://github.com/synthetichealth/synthea) (Apache 2.0): generates the synthetic
+  patients. Downloaded by `scripts/generate_data.py`, pinned to v4.0.0 by SHA-256, not stored here.
+- [Chart.js](https://www.chartjs.org/) 4.5.1 (MIT): `app/static/vendor/chart.umd.min.js`, vendored
+  unchanged (hash in `app/static/vendor/README.md`).
+- Amazon RDS CA certificate bundle (public): `app/certs/rds-global-bundle.pem`, unchanged (source
+  and hash in `app/certs/README.md`).
+- Clinical code sets come from the Synthea data and CDC's public CVX table; the HIPAA Safe Harbor
+  guidance and ZIP3 list come from HHS. All other code in this repository was written for it.
 
 ## Limitations and next steps
 

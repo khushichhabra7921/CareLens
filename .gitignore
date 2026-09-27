@@ -34,8 +34,6 @@ cdk.out/
 # ...except AWS's public RDS CA bundle, which the Docker image needs (not a secret).
 !app/certs/rds-global-bundle.pem
 
-# --- Local Claude Code tooling (preview config) ---
-.claude/
 
 # --- CodeLens AI output (CI) ---
 codelens-report/
