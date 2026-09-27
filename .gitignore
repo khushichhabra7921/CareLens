@@ -34,3 +34,7 @@ cdk.out/
 
 # --- Local Claude Code tooling (preview config) ---
 .claude/
+
+# --- CodeLens AI output (CI) ---
+codelens-report/
+codelens-ai/

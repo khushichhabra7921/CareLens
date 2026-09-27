@@ -1,0 +1,46 @@
+# Configuration for CodeLens AI (https://github.com/khushichhabra7921/CodeLensAI), run in CI.
+reports:
+  format: all
+  output_dir: codelens-report
+  generate_pr_comment: false
+
+analysis:
+  skip_ai: true        # no Groq call from CI
+  skip_tests: true     # CareLens has its own test suite
+  track_history: false
+  track_issue_trends: false
+
+quality_gate:
+  enabled: true
+  min_score: 70
+  max_critical_issues: 0
+  max_high_issues: 0
+  fail_on_tests_failed: true
+
+rules:
+  max_function_lines: 30
+  max_arguments: 5
+  check_security: true
+  allow_http_urls: false
+  check_dependencies: true
+  dependency_file_patterns:
+    - requirements.txt
+    - requirements-dev.txt
+  require_pinned_dependencies: true
+  allow_editable_installs: false
+  allow_http_dependencies: false
+
+ignore:
+  folders:
+    - .git
+    - .venv
+    - venv
+    - __pycache__
+    - .pytest_cache
+    - .ruff_cache
+    - .claude
+    - data
+    - tools
+    - codelens-ai
+    - codelens-report
+  files: []
