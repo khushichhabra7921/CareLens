@@ -17,8 +17,8 @@ The full brief is in the owner's Downloads/PROJECT_BRIEF.md. Decisions are logge
 - pytest, ruff (`ruff check .`), Docker Compose, GitHub Actions. No Kubernetes, microservices or queues.
 
 ## Data & privacy (treat synthetic data as real PHI)
-- Schemas: `phi` holds identifiers only; `analytics` holds de-identified + clinical data; `app` holds reports, the audit log and name-token hashes.
-- The web app connects as `app_readonly`, which has **no access to `phi`**.
+- Schemas: `phi` identifiers; `analytics` pseudonymized row-level clinical data; `reporting` aggregate materialized views; `app` reports/audit/name hashes; `loader` rejected rows.
+- The web app connects as `app_readonly`, which can read **only `reporting`** (no `phi`, `analytics` or `loader`).
 - Analyses return aggregates only. Counts 1–10 are suppressed (NULL + `suppressed` flag).
 - Reference date = the latest encounter date in the data, never `CURRENT_DATE`.
 - Never guess clinical codes. Look them up in the data or in official sources.
@@ -35,6 +35,12 @@ The full brief is in the owner's Downloads/PROJECT_BRIEF.md. Decisions are logge
 - Schema DDL in `sql/schema/NNN_*.sql` (applied in order, as `carelens_loader`); roles in `sql/roles.sql` (as admin).
 - Loader transform is `sql/load/transform.sql`: guard casts with ordered `CASE WHEN` branches, never `A OR B`.
 - DB is UTC. Use `127.0.0.1` not `localhost` (IPv6 delay on Windows). Tests use DB `carelens_test`.
+
+## Analyses
+- One file per result table in `sql/analyses/NN[a]_name.sql` becomes `reporting.name`. Header fields Title/Question/Method/Assumptions/Limitations are required (parsed by `refresh_views.py`).
+- Use `analytics.suppress()`, `safe_pct()`, `is_small()`, `total_reveals_small()`; every view has `sort_order` and `suppressed`.
+- Code sets live in `analytics.condition_groups` / `vaccine_groups` (006_reference.sql), never inline guesses.
+- After editing an analysis: `refresh_views.py --rebuild`, update `tests/test_analyses.py`, run `export_findings.py`.
 
 ## Files
 - All text files are UTF-8 without a BOM. Check with `py -3.12 scripts/check_encoding.py`.

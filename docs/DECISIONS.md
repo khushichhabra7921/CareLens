@@ -119,3 +119,64 @@ Short log of why things are the way they are. Newest milestone at the bottom.
   full dataset. They skip if Postgres is down, unless `REQUIRE_DB=1` (CI sets it).
 - **`127.0.0.1` instead of `localhost`:** on Windows `localhost` resolves to IPv6 `::1` first. Docker
   only listens on IPv4, and each refused attempt cost 2.1 s. The test suite went from 287 s to 6.5 s.
+## Milestone 4: SQL analyses
+
+- **Simple small-cell suppression (owner's choice)** via helper functions in
+  `sql/schema/006_reference.sql`: `suppress(n)` hides 1-10, `safe_pct()` hides a percentage whose
+  numerator or denominator is 1-10, and every row has a `suppressed` flag. Zero may be shown.
+  Money columns are hidden when a cell has 1-10 encounters (a cost from very few visits is close
+  to one person's bill).
+- **Totals rule:** a total row (overall readmissions, 65+ polypharmacy/flu) is hidden when the
+  suppressed cells beneath it add up to 1-10, because subtraction would recover them. If they add
+  up to 11+, only their combined sum is revealed, which the policy allows.
+- **Known residual risk, visible in the real data:** the population overview has no total row,
+  but every dimension adds up to the same 1,155, so `race = native` (suppressed) can be recovered
+  as 1,155 minus the other races. Documented in the analysis header. Complementary suppression
+  (hiding a second cell) would close it; left as a next step.
+- **Consequence of 1,155 patients:** several headline figures are suppressed in the real data,
+  including the overall readmission rate, the frequent-ED-user count, the hypertension care gap
+  and the 65+ totals. That is the policy working, not a bug. A larger population (e.g.
+  `generate_data.py -p 5000`) would show more.
+- **Materialized views in a new `reporting` schema, and the app role lost access to
+  `analytics`.** The app can now read ONLY suppressed aggregates (plus a one-row
+  `reporting.dataset_info`). "No endpoint returns row-level data" is enforced by the database, so
+  even an SQL injection couldn't read a patient row. Stronger than the brief, which gave the app
+  SELECT on analytics. All 8 analyses are materialized, not just the heavy ones: their results are
+  a few dozen rows, and one uniform rule ("the app reads views") is easier to reason about.
+  `load_data.py` rebuilds the views in the same transaction as the load, so they can't go stale.
+- **Every view has a `sort_order` column:** a materialized view doesn't guarantee row order, so
+  readers `ORDER BY sort_order`.
+- **Time windows:** "last 12 months" = after (reference date - 12 months) up to and including
+  the reference date, identical in every analysis. Synthea's data is only detailed from about
+  2015 (a 10-year export window; a few records go back to 1915), so nothing uses "all time".
+- **Diabetes = diagnosis code OR a "due to diabetes" complication code.** 78 of 164 patients have
+  only the complication code (the diagnosis predates the export window). Using 44054006 alone
+  would miss almost half.
+- **Flu vaccines = 32 seasonal-influenza CVX codes from CDC's CVX table,** not a text match. A text
+  match on "influenza" would also count Hib vaccines (*Haemophilus influenzae*, a bacterium).
+  Avian and 2009-pandemic vaccines are excluded. The data only contains CVX 140.
+- **Readmissions:** LEAD over each patient's inpatient stays, computed before filtering (so a
+  readmission outside the window is still found). Index stays are discharges from 5 years to 30
+  days before the reference date, excluding deaths during the stay. A next stay that starts before
+  the previous discharge (53 overlaps, probably transfers) is not a readmission. Simplified versus
+  CMS HWR: no planned-readmission exclusion or risk adjustment.
+- **ED rate per 1,000 uses 12-month periods ending on the reference date** (always complete
+  years) and "active patients" (anyone with an encounter in the period) as the denominator,
+  because birth dates live only in `phi`.
+- **Top 10 conditions only rank reason codes that are real diagnoses** (the code appears in the
+  conditions table), because encounter reasons also include procedures such as "Screening for
+  malignant neoplasm of colon". Conditions with 1-10 patients are left out of the ranking
+  entirely: a suppressed row would still leak its size through its rank.
+- **Polypharmacy counts distinct RxNorm codes** (Simvastatin appears under one code with two
+  capitalisations). The 57 medications that stop before they start can never be active on the
+  reference date (stop < start <= reference date), so they need no special handling.
+- **Fixture cohorts:** four cohorts (20 + 12 + 12 + 11 patients) added to the builder, sized so
+  every analysis has one cell above 10 and one of 1-10. `tests/test_analyses.py` holds the
+  expected values with the arithmetic in comments, all read as `app_readonly`. Two generic tests
+  run on every view: no integer from 1 to 10 is ever shown, and no uuid/`*_id` column exists.
+- **Findings are exported as the app role** (`scripts/export_findings.py`), with a last check that
+  refuses to publish any 1-10 count. The output has no timestamps, so the same data gives an
+  identical file (checked).
+- **Lesson from this milestone:** a failed scripted edit emptied `tests/test_roles.py` to 0 bytes,
+  and the suite still said "49 passed", because an empty test file doesn't fail. Caught by looking
+  at which tests ran, not just the pass count.
