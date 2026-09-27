@@ -7,18 +7,20 @@ from datetime import date
 import pytest
 from conftest import FIXTURE_CSV, TEST_DB
 
+import build_fixture
 import load_data
 
-EXPECTED_ROWS = {"patients": 8, "organizations": 2, "providers": 2, "payers": 4,
-                 "encounters": 12, "conditions": 3, "medications": 1, "observations": 4,
-                 "procedures": 2, "immunizations": 1}
+# Rows per table in the fixture, straight from the builder.
+EXPECTED_ROWS = {table: len(rows) for table, rows in build_fixture.build().rows.items()}
+HAND_WRITTEN = {"Will", "Robert", "Mary", "Mark", "Hope", "José", "Grace", "Ava"}
 
 
 def by_first_name(conn) -> dict:
+    # Only the 8 hand-written patients (cohort patients share first names with each other).
     rows = conn.execute("""
         SELECT i.first_name, p.age_band, p.zip3, p.is_deceased
         FROM analytics.patients p JOIN phi.patient_identifiers i USING (patient_id)""")
-    return {name: rest for name, *rest in rows}
+    return {name: rest for name, *rest in rows if name in HAND_WRITTEN}
 
 
 def test_every_row_loaded_and_reconciled(test_db):
@@ -30,7 +32,8 @@ def test_every_row_loaded_and_reconciled(test_db):
 def test_reload_is_idempotent(test_db, loader_conn):
     load_data.load(FIXTURE_CSV, TEST_DB)
     load_data.load(FIXTURE_CSV, TEST_DB)
-    assert loader_conn.execute("SELECT count(*) FROM analytics.encounters").fetchone()[0] == 12
+    assert loader_conn.execute("SELECT count(*) FROM analytics.encounters").fetchone()[0] == (
+        EXPECTED_ROWS["encounters"])
     # RESTART IDENTITY: generated ids start at 1 again on each load.
     assert loader_conn.execute("SELECT min(observation_id) FROM analytics.observations"
                                ).fetchone()[0] == 1
@@ -88,7 +91,8 @@ def test_bad_rows_are_rejected_with_reasons_and_counts_still_reconcile(tmp_path,
 
     csv_dir = edited_fixture(tmp_path, "encounters", break_encounters)
     report = load_data.load(csv_dir, TEST_DB)
-    assert report["encounters"] == {"csv": 12, "loaded": 7, "rejected": 5}
+    n = EXPECTED_ROWS["encounters"]
+    assert report["encounters"] == {"csv": n, "loaded": n - 5, "rejected": 5}
     reasons = {r for t, r, _ in report["_rejected_by_reason"] if t == "encounters"}
     assert reasons == {"unknown patient", "invalid timestamp", "negative cost",
                        "coverage exceeds cost", "invalid provider id"}
@@ -107,4 +111,5 @@ def test_wrong_header_fails_and_leaves_previous_data_untouched(tmp_path, loader_
                                        encoding="utf-8")
     with pytest.raises(load_data.LoadError, match="header differs"):
         load_data.load(target, TEST_DB)
-    assert loader_conn.execute("SELECT count(*) FROM analytics.patients").fetchone()[0] == 8
+    assert loader_conn.execute("SELECT count(*) FROM analytics.patients").fetchone()[0] == (
+        EXPECTED_ROWS["patients"])

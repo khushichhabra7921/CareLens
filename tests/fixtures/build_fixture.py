@@ -72,6 +72,24 @@ DEPRESSION_SCREEN = ("171207006", "Depression screening (procedure)")
 TOOTH_EXTRACTION_CDT = ("D7140", "extraction  erupted tooth or exposed root "
                         "(elevation and/or forceps removal)")
 FLU_VACCINE = ("140", "Influenza  split virus  trivalent  PF")
+DIABETES = ("44054006", "Diabetes mellitus type 2 (disorder)")
+CHILDHOOD_ASTHMA = ("233678006", "Childhood asthma (disorder)")
+HEART_FAILURE = ("88805009", "Chronic congestive heart failure (disorder)")
+LISINOPRIL = ("314076", "lisinopril 10 MG Oral Tablet")
+FIVE_MEDS = [  # five different RxNorm codes, all found in the generated data
+    LISINOPRIL,
+    ("866412", "24 HR metoprolol succinate 100 MG Extended Release Oral Tablet"),
+    ("312961", "Simvastatin 20 MG Oral Tablet"),
+    ("309362", "Clopidogrel 75 MG Oral Tablet"),
+    ("310798", "Hydrochlorothiazide 25 MG Oral Tablet"),
+]
+
+# Invented names for the cohort patients (none match the 8 hand-written patients).
+COHORT_FIRST = ["Avery", "Blake", "Casey", "Devon", "Emerson", "Finley", "Harper", "Jules",
+                "Kendall", "Logan", "Morgan", "Parker", "Quinn", "Reese", "Rowan", "Sage",
+                "Skyler", "Taylor", "Tatum", "Wren"]
+COHORT_LAST = ["Ashford", "Brookline", "Carrow", "Dunmore", "Ellery", "Fairholm", "Garrick",
+               "Holloway", "Ivers", "Kestrel", "Lindqvist", "Marlowe"]
 
 
 def build() -> Fixture:
@@ -132,11 +150,21 @@ def build() -> Fixture:
 
     # --- Encounters and clinical events ---
     def encounter(key, pat, start, stop, cls, code, payer, org="org-clinic", prov="prov-b",
-                  cost="100.00", covered="80.00"):
+                  cost="100.00", covered="80.00", reason=("", "")):
         fx.add("encounters", Id=uid(key), START=start, STOP=stop, PATIENT=uid(pat),
                ORGANIZATION=uid(org), PROVIDER=uid(prov), PAYER=uid(payer), ENCOUNTERCLASS=cls,
                CODE=code[0], DESCRIPTION=code[1], BASE_ENCOUNTER_COST="85.55",
-               TOTAL_CLAIM_COST=cost, PAYER_COVERAGE=covered)
+               TOTAL_CLAIM_COST=cost, PAYER_COVERAGE=covered, REASONCODE=reason[0],
+               REASONDESCRIPTION=reason[1])
+
+    def condition(pat, enc, start, code, stop=""):
+        fx.add("conditions", START=start, STOP=stop, PATIENT=uid(pat), ENCOUNTER=uid(enc),
+               SYSTEM="SNOMED-CT", CODE=code[0], DESCRIPTION=code[1])
+
+    def medication(pat, enc, start, code, payer, stop=""):
+        fx.add("medications", START=start, STOP=stop, PATIENT=uid(pat), PAYER=uid(payer),
+               ENCOUNTER=uid(enc), CODE=code[0], DESCRIPTION=code[1], BASE_COST="10.00",
+               PAYER_COVERAGE="8.00", DISPENSES="1", TOTALCOST="10.00")
 
     def observation(date, pat, enc, obs, value):
         fx.add("observations", DATE=date, PATIENT=uid(pat), ENCOUNTER=uid(enc) if enc else "",
@@ -210,6 +238,101 @@ def build() -> Fixture:
     encounter("e08a", "p08", "2024-01-15T03:00:00Z", "2024-01-15T06:00:00Z", "emergency",
               EMERGENCY, "payer-aetna", org="org-hospital", prov="prov-a",
               cost="1200.00", covered="900.00")
+
+    # p06: childhood asthma that resolved in 2015, so it is NOT active on the reference date.
+    encounter("e06b", "p06", "2010-05-05T09:00:00Z", "2010-05-05T09:30:00Z", "wellness",
+              WELLNESS, "payer-aetna")
+    condition("p06", "e06b", "2010-05-05", CHILDHOOD_ASTHMA, stop="2015-05-05")
+
+    # ================================================================== cohorts
+    # Groups of more than 10 patients, so the analyses have numbers that are NOT suppressed.
+    # Each cohort is sized so every analysis has one cell above 10 and one cell of 1-10.
+    # The expected results, worked out by hand, are in tests/test_analyses.py.
+    # Reference date = 2024-12-02 (latest encounter, p05's visit). "Last 12 months" =
+    # after 2023-12-02 up to and including 2024-12-02. All cohort dates avoid the edges.
+
+    def cohort_patient(key, n, i, birth, gender, ethnicity):
+        patient(key, birth, COHORT_FIRST[i % 20], COHORT_LAST[(i * 7) % 12], gender, "white",
+                ethnicity, n)
+
+    # C1: 20 patients aged 69 (65-74), 12 women and 8 men, Medicare. All have diabetes and
+    # hypertension (diagnosed 2018), and a wellness visit on 2024-10-15 with blood pressure.
+    #   - HbA1c at that visit for i < 14         -> 6 diabetics with a care gap
+    #   - flu shot at that visit for i < 12      -> 12 vaccinated (+ p01 = 13)
+    #   - 5 active medications for i < 11        -> 11 with polypharmacy; the rest have 1
+    #   - i == 11 also has 4 medications that STOPPED before the reference date (not active)
+    #   - i == 12 had a flu shot on 2023-10-01, outside the 12-month window
+    for i in range(20):
+        p = f"c1-{i}"
+        cohort_patient(p, 101 + i, i, "1955-06-15", "F" if i < 12 else "M", "nonhispanic")
+        encounter(f"{p}-dx", p, "2018-01-10T09:00:00Z", "2018-01-10T09:30:00Z", "ambulatory",
+                  PROBLEM_VISIT, "payer-medicare")
+        condition(p, f"{p}-dx", "2018-01-10", DIABETES)
+        condition(p, f"{p}-dx", "2018-01-10", HYPERTENSION)
+        visit = f"{p}-well"
+        encounter(visit, p, "2024-10-15T09:00:00Z", "2024-10-15T09:30:00Z", "wellness",
+                  WELLNESS, "payer-medicare")
+        observation("2024-10-15T09:05:00Z", p, visit, SYSTOLIC, "128.0")
+        observation("2024-10-15T09:05:00Z", p, visit, DIASTOLIC, "82.0")
+        if i < 14:
+            observation("2024-10-15T09:10:00Z", p, visit, HBA1C, "7.2")
+        if i < 12:
+            fx.add("immunizations", DATE="2024-10-15T09:20:00Z", PATIENT=uid(p),
+                   ENCOUNTER=uid(visit), CODE=FLU_VACCINE[0], DESCRIPTION=FLU_VACCINE[1],
+                   BASE_COST="136.00")
+        for med in (FIVE_MEDS if i < 11 else [LISINOPRIL]):
+            medication(p, visit, "2024-10-15T09:30:00Z", med, "payer-medicare")
+        if i == 11:
+            for med in FIVE_MEDS[1:]:
+                medication(p, f"{p}-dx", "2018-01-10T09:30:00Z", med, "payer-medicare",
+                           stop="2024-06-01T00:00:00Z")
+        if i == 12:
+            encounter(f"{p}-flu2023", p, "2023-10-01T09:00:00Z", "2023-10-01T09:15:00Z",
+                      "wellness", WELLNESS, "payer-medicare")
+            fx.add("immunizations", DATE="2023-10-01T09:05:00Z", PATIENT=uid(p),
+                   ENCOUNTER=uid(f"{p}-flu2023"), CODE=FLU_VACCINE[0],
+                   DESCRIPTION=FLU_VACCINE[1], BASE_COST="136.00")
+
+    # C2: 12 men aged 54 (45-64), Aetna. Hypertension since 2018, a wellness visit on
+    # 2024-06-01 but NO blood pressure reading -> 12 hypertensive patients with a care gap.
+    for i in range(12):
+        p = f"c2-{i}"
+        cohort_patient(p, 201 + i, i, "1970-02-02", "M", "nonhispanic")
+        encounter(f"{p}-dx", p, "2018-01-10T10:00:00Z", "2018-01-10T10:30:00Z", "ambulatory",
+                  PROBLEM_VISIT, "payer-aetna")
+        condition(p, f"{p}-dx", "2018-01-10", HYPERTENSION)
+        encounter(f"{p}-well", p, "2024-06-01T09:00:00Z", "2024-06-01T09:30:00Z", "wellness",
+                  WELLNESS, "payer-aetna")
+
+    # C3: 12 women aged 34 (18-44), hispanic, Aetna. A hospital stay for heart failure,
+    # discharged 2024-04-04.
+    #   - i < 11 come back on 2024-04-20 (16 days later) -> 11 readmissions
+    #   - i == 11 is admitted again on 2024-11-20: discharged within 30 days of the reference
+    #     date, so that stay is NOT an index stay (no full 30-day follow-up)
+    heart_failure_stay = dict(org="org-hospital", prov="prov-a", cost="10000.00",
+                              covered="9000.00", reason=HEART_FAILURE)
+    for i in range(12):
+        p = f"c3-{i}"
+        cohort_patient(p, 301 + i, i, "1990-03-03", "F", "hispanic")
+        encounter(f"{p}-stay1", p, "2024-04-01T08:00:00Z", "2024-04-04T12:00:00Z", "inpatient",
+                  INPATIENT, "payer-aetna", **heart_failure_stay)
+        condition(p, f"{p}-stay1", "2024-04-01", HEART_FAILURE)  # diagnosed on the first stay
+        if i < 11:
+            encounter(f"{p}-stay2", p, "2024-04-20T08:00:00Z", "2024-04-22T12:00:00Z",
+                      "inpatient", INPATIENT, "payer-aetna", **heart_failure_stay)
+        else:
+            encounter(f"{p}-stay3", p, "2024-11-20T08:00:00Z", "2024-11-22T12:00:00Z",
+                      "inpatient", INPATIENT, "payer-aetna", **heart_failure_stay)
+
+    # C4: 11 men aged 29 (18-44), Aetna. Four ED visits each in the last 12 months
+    # -> 11 frequent ED users, 44 ED visits.
+    for i in range(11):
+        p = f"c4-{i}"
+        cohort_patient(p, 401 + i, i, "1995-05-05", "M", "nonhispanic")
+        for month in ["02", "03", "05", "08"]:
+            encounter(f"{p}-ed{month}", p, f"2024-{month}-01T20:00:00Z",
+                      f"2024-{month}-01T23:00:00Z", "emergency", EMERGENCY, "payer-aetna",
+                      org="org-hospital", prov="prov-a", cost="1000.00", covered="800.00")
     return fx
 
 

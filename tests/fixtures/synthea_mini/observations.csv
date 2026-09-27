@@ -3,3 +3,57 @@ DATE,PATIENT,ENCOUNTER,CATEGORY,CODE,DESCRIPTION,VALUE,UNITS,TYPE
 2024-02-10T09:05:00Z,fe19539f-cb40-5af8-baa5-d6057749e330,a7669d90-2b31-5428-b444-8c58811d8766,vital-signs,8480-6,Systolic Blood Pressure,138.0,mm[Hg],numeric
 2024-02-10T09:05:00Z,fe19539f-cb40-5af8-baa5-d6057749e330,a7669d90-2b31-5428-b444-8c58811d8766,vital-signs,8462-4,Diastolic Blood Pressure,86.0,mm[Hg],numeric
 2024-12-31T00:00:00Z,3a114678-7445-58bf-86d1-153035c351eb,,,QALY,QALY,33.0,a,numeric
+2024-10-15T09:05:00Z,466a5ef2-e1a9-5081-a2a6-d12d2877a53b,ffe61231-b24f-51ea-82c0-ef82cd2df663,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,466a5ef2-e1a9-5081-a2a6-d12d2877a53b,ffe61231-b24f-51ea-82c0-ef82cd2df663,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
+2024-10-15T09:10:00Z,466a5ef2-e1a9-5081-a2a6-d12d2877a53b,ffe61231-b24f-51ea-82c0-ef82cd2df663,laboratory,4548-4,Hemoglobin A1c/Hemoglobin.total in Blood,7.2,%,numeric
+2024-10-15T09:05:00Z,826bc132-90d3-5458-ad6e-2c194f7b167a,b2acd53e-ddee-5dd2-9e7b-199505fa9aef,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,826bc132-90d3-5458-ad6e-2c194f7b167a,b2acd53e-ddee-5dd2-9e7b-199505fa9aef,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
+2024-10-15T09:10:00Z,826bc132-90d3-5458-ad6e-2c194f7b167a,b2acd53e-ddee-5dd2-9e7b-199505fa9aef,laboratory,4548-4,Hemoglobin A1c/Hemoglobin.total in Blood,7.2,%,numeric
+2024-10-15T09:05:00Z,40aba17a-5994-5ba8-bfe3-c745ead3b5c3,122e8cef-d7ac-5409-8e9c-2943a0b329a9,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,40aba17a-5994-5ba8-bfe3-c745ead3b5c3,122e8cef-d7ac-5409-8e9c-2943a0b329a9,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
+2024-10-15T09:10:00Z,40aba17a-5994-5ba8-bfe3-c745ead3b5c3,122e8cef-d7ac-5409-8e9c-2943a0b329a9,laboratory,4548-4,Hemoglobin A1c/Hemoglobin.total in Blood,7.2,%,numeric
+2024-10-15T09:05:00Z,d9664869-21dc-5941-b132-955c877d0bf9,e10ea628-0f98-5405-8c38-3f32e40ec4f4,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,d9664869-21dc-5941-b132-955c877d0bf9,e10ea628-0f98-5405-8c38-3f32e40ec4f4,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
+2024-10-15T09:10:00Z,d9664869-21dc-5941-b132-955c877d0bf9,e10ea628-0f98-5405-8c38-3f32e40ec4f4,laboratory,4548-4,Hemoglobin A1c/Hemoglobin.total in Blood,7.2,%,numeric
+2024-10-15T09:05:00Z,2ae0e053-0c20-5c72-a600-e316ec4aea2d,6f6cb3e1-eae6-5009-9595-2ca4faf3965d,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,2ae0e053-0c20-5c72-a600-e316ec4aea2d,6f6cb3e1-eae6-5009-9595-2ca4faf3965d,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
+2024-10-15T09:10:00Z,2ae0e053-0c20-5c72-a600-e316ec4aea2d,6f6cb3e1-eae6-5009-9595-2ca4faf3965d,laboratory,4548-4,Hemoglobin A1c/Hemoglobin.total in Blood,7.2,%,numeric
+2024-10-15T09:05:00Z,273f5ef9-479f-5860-829c-c4338a86b753,4e95d48b-99ee-57a1-9f57-77f39d45ac4f,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,273f5ef9-479f-5860-829c-c4338a86b753,4e95d48b-99ee-57a1-9f57-77f39d45ac4f,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
+2024-10-15T09:10:00Z,273f5ef9-479f-5860-829c-c4338a86b753,4e95d48b-99ee-57a1-9f57-77f39d45ac4f,laboratory,4548-4,Hemoglobin A1c/Hemoglobin.total in Blood,7.2,%,numeric
+2024-10-15T09:05:00Z,df22f05d-1157-54ff-8f92-6e2fd5bbf245,8f369bea-240d-550b-9172-29fcec1b791d,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,df22f05d-1157-54ff-8f92-6e2fd5bbf245,8f369bea-240d-550b-9172-29fcec1b791d,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
+2024-10-15T09:10:00Z,df22f05d-1157-54ff-8f92-6e2fd5bbf245,8f369bea-240d-550b-9172-29fcec1b791d,laboratory,4548-4,Hemoglobin A1c/Hemoglobin.total in Blood,7.2,%,numeric
+2024-10-15T09:05:00Z,dc2d1a2b-3f82-562f-a04a-5d786f4a4606,d39104c7-fc36-50cc-b448-6c6210dc7faf,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,dc2d1a2b-3f82-562f-a04a-5d786f4a4606,d39104c7-fc36-50cc-b448-6c6210dc7faf,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
+2024-10-15T09:10:00Z,dc2d1a2b-3f82-562f-a04a-5d786f4a4606,d39104c7-fc36-50cc-b448-6c6210dc7faf,laboratory,4548-4,Hemoglobin A1c/Hemoglobin.total in Blood,7.2,%,numeric
+2024-10-15T09:05:00Z,891478a1-554d-528b-b068-5f23fe39c74b,f4c828be-8328-5968-9f13-ea7f8b40be56,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,891478a1-554d-528b-b068-5f23fe39c74b,f4c828be-8328-5968-9f13-ea7f8b40be56,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
+2024-10-15T09:10:00Z,891478a1-554d-528b-b068-5f23fe39c74b,f4c828be-8328-5968-9f13-ea7f8b40be56,laboratory,4548-4,Hemoglobin A1c/Hemoglobin.total in Blood,7.2,%,numeric
+2024-10-15T09:05:00Z,e1dafc0d-f345-5e28-bece-ed8eebe9694f,afb8fa85-bcb2-57cb-94b4-8cdbaae42a9f,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,e1dafc0d-f345-5e28-bece-ed8eebe9694f,afb8fa85-bcb2-57cb-94b4-8cdbaae42a9f,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
+2024-10-15T09:10:00Z,e1dafc0d-f345-5e28-bece-ed8eebe9694f,afb8fa85-bcb2-57cb-94b4-8cdbaae42a9f,laboratory,4548-4,Hemoglobin A1c/Hemoglobin.total in Blood,7.2,%,numeric
+2024-10-15T09:05:00Z,c54211c6-caca-544c-9af9-ebec8cb52203,f7267422-c9d1-51ca-9e83-6be7419b680f,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,c54211c6-caca-544c-9af9-ebec8cb52203,f7267422-c9d1-51ca-9e83-6be7419b680f,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
+2024-10-15T09:10:00Z,c54211c6-caca-544c-9af9-ebec8cb52203,f7267422-c9d1-51ca-9e83-6be7419b680f,laboratory,4548-4,Hemoglobin A1c/Hemoglobin.total in Blood,7.2,%,numeric
+2024-10-15T09:05:00Z,b2e4964e-fca1-5d6e-9a4e-836e1d34e648,e3cceb68-b3eb-52b4-a0d2-8822c009fd6e,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,b2e4964e-fca1-5d6e-9a4e-836e1d34e648,e3cceb68-b3eb-52b4-a0d2-8822c009fd6e,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
+2024-10-15T09:10:00Z,b2e4964e-fca1-5d6e-9a4e-836e1d34e648,e3cceb68-b3eb-52b4-a0d2-8822c009fd6e,laboratory,4548-4,Hemoglobin A1c/Hemoglobin.total in Blood,7.2,%,numeric
+2024-10-15T09:05:00Z,48f2a79b-b778-5a3d-b90d-2ddb9a75e547,801274d9-82be-5b0c-9a4f-de4de37a367c,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,48f2a79b-b778-5a3d-b90d-2ddb9a75e547,801274d9-82be-5b0c-9a4f-de4de37a367c,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
+2024-10-15T09:10:00Z,48f2a79b-b778-5a3d-b90d-2ddb9a75e547,801274d9-82be-5b0c-9a4f-de4de37a367c,laboratory,4548-4,Hemoglobin A1c/Hemoglobin.total in Blood,7.2,%,numeric
+2024-10-15T09:05:00Z,7e36d74e-fab5-50e0-9d28-e960873b8441,b9ab6af7-c70e-53ea-b133-97b17a386e08,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,7e36d74e-fab5-50e0-9d28-e960873b8441,b9ab6af7-c70e-53ea-b133-97b17a386e08,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
+2024-10-15T09:10:00Z,7e36d74e-fab5-50e0-9d28-e960873b8441,b9ab6af7-c70e-53ea-b133-97b17a386e08,laboratory,4548-4,Hemoglobin A1c/Hemoglobin.total in Blood,7.2,%,numeric
+2024-10-15T09:05:00Z,b1df275f-90c9-586b-82f2-a792edc5af91,54bdd0bb-f6cb-5cec-ae58-228e6b1e2b3e,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,b1df275f-90c9-586b-82f2-a792edc5af91,54bdd0bb-f6cb-5cec-ae58-228e6b1e2b3e,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,14b37ad7-0f33-522b-94bb-ab8a10192fc2,139f938e-82fc-571c-9ca5-982a1d46d5ed,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,14b37ad7-0f33-522b-94bb-ab8a10192fc2,139f938e-82fc-571c-9ca5-982a1d46d5ed,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,42412864-e2f4-5634-80fb-2ceb4aeb019d,cce939a0-9cd5-5888-9078-917bccbea201,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,42412864-e2f4-5634-80fb-2ceb4aeb019d,cce939a0-9cd5-5888-9078-917bccbea201,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,a7ec66c2-f4cd-5bb5-bdef-9fb4915f0306,856fc492-da4f-5893-9306-b5f79dac675f,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,a7ec66c2-f4cd-5bb5-bdef-9fb4915f0306,856fc492-da4f-5893-9306-b5f79dac675f,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,7347171d-da79-5017-a971-9a6a45696eab,efc84f9f-16a9-52ae-91e8-db91aa7cdd50,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,7347171d-da79-5017-a971-9a6a45696eab,efc84f9f-16a9-52ae-91e8-db91aa7cdd50,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,b741164c-50f9-50f0-a517-2a444978e8f3,b895105e-9296-58a9-9cf1-c8e4cb55b338,vital-signs,8480-6,Systolic Blood Pressure,128.0,mm[Hg],numeric
+2024-10-15T09:05:00Z,b741164c-50f9-50f0-a517-2a444978e8f3,b895105e-9296-58a9-9cf1-c8e4cb55b338,vital-signs,8462-4,Diastolic Blood Pressure,82.0,mm[Hg],numeric
