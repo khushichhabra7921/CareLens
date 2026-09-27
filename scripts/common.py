@@ -29,6 +29,9 @@ class DbSettings(BaseSettings):
     # "prefer" locally (Docker Postgres has no TLS); "verify-full" against RDS.
     db_sslmode: str = "prefer"
     db_sslrootcert: str | None = None   # CA bundle, needed for verify-full against RDS
+    # Connect to this IP instead of resolving DB_HOST (e.g. 127.0.0.1 through an SSM tunnel).
+    # DB_HOST is still used to check the server's TLS certificate name.
+    db_hostaddr: str | None = None
     postgres_user: str = "postgres"
     postgres_password: SecretStr | None = None
     loader_password: SecretStr | None = None
@@ -59,6 +62,7 @@ def connect(role: str, dbname: str | None = None, autocommit: bool = False) -> p
         password=password.get_secret_value(),
         sslmode=s.db_sslmode,
         **({"sslrootcert": s.db_sslrootcert} if s.db_sslrootcert else {}),
+        **({"hostaddr": s.db_hostaddr} if s.db_hostaddr else {}),
         autocommit=autocommit,
         connect_timeout=10,
     )
