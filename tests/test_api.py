@@ -3,13 +3,18 @@
 import re
 import uuid
 
+import psycopg
 import pytest
+from conftest import TEST_SALT
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
+from test_privacy_pipeline import FakeLLM  # the same fake LLM the unit tests use
 
+import app.analyses as analyses_module
 import common
 from app.analyses import ANALYSES
 from app.main import app
+from app.privacy.tokens import token_hash
 
 API_KEY = "test-admin-key-0123456789"
 
@@ -23,6 +28,8 @@ def client(test_db, monkeypatch):
     monkeypatch.setenv("APP_DB_PASSWORD", db.app_db_password.get_secret_value())
     monkeypatch.setenv("ADMIN_API_KEY", API_KEY)
     monkeypatch.setenv("REPORTS_RATE_LIMIT", "3")
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)   # tests never call the real LLM
+    monkeypatch.setenv("LLM_MODEL", "")
     with TestClient(app) as c:   # runs startup: fresh pool, cache and rate limiter per test
         yield c
 
@@ -88,21 +95,10 @@ def test_create_and_fetch_a_template_report(client):
     record = response.json()
     assert record["source"] == "template"
     assert record["disclaimer"] == "Synthetic data. Not clinical advice."
-    assert record["grounding"]["status"] == "not_checked"
+    assert record["grounding"]["status"] == "passed"   # template numbers come from the data
     assert record["report"]["findings"]
     fetched = client.get(f"/api/reports/{record['report_id']}")
     assert fetched.status_code == 200 and fetched.json() == record
-
-
-def test_template_report_only_cites_numbers_from_the_data(client):
-    analysis = client.get("/api/analyses/polypharmacy").json()
-    data_values = {float(v) for t in analysis["tables"] for r in t["rows"] for v in r.values()
-                   if isinstance(v, int | float) and not isinstance(v, bool)}
-    data_values |= {float(len(t["rows"])) for t in analysis["tables"]}
-    data_values |= {float(t["suppressed_rows"]) for t in analysis["tables"]}
-    record = post_report(client, "polypharmacy").json()
-    for finding in record["report"]["findings"]:
-        assert set(finding["values_cited"]) <= data_values, finding
 
 
 def test_unknown_report_is_404_and_bad_id_is_422(client):
@@ -169,3 +165,79 @@ def test_no_endpoint_returns_row_level_patient_data(client, loader_conn):
         assert not leaked, f"{response.url} leaked {leaked[:5]}"
     # A report id is a UUID, but not a patient's: make sure no fixture UUID slipped in.
     assert report["report_id"] not in secrets
+
+
+# ------------------------------------------------------------------ M6: audit log and blocking
+
+def last_audit(loader_conn) -> dict:
+    loader_conn.commit()   # see rows committed by the app's own connection
+    row = loader_conn.execute(
+        "SELECT outcome, fallback_reason, model, payload_sha256, redactions_outbound, "
+        "grounding_passed, attempts, total_tokens, report_id::text "
+        "FROM app.audit_log ORDER BY audit_id DESC LIMIT 1").fetchone()
+    keys = ["outcome", "fallback_reason", "model", "payload_sha256", "redactions_outbound",
+            "grounding_passed", "attempts", "total_tokens", "report_id"]
+    return dict(zip(keys, row, strict=True))
+
+
+def test_every_report_writes_an_audit_row(client, loader_conn):
+    record = post_report(client).json()
+    audit = last_audit(loader_conn)
+    assert audit["report_id"] == record["report_id"]
+    assert audit["outcome"] == "fallback" and audit["fallback_reason"] == "llm_not_configured"
+    assert len(audit["payload_sha256"]) == 64 and audit["grounding_passed"] is True
+    assert (audit["model"], audit["attempts"], audit["total_tokens"]) == (None, 0, 0)
+
+
+def test_report_with_a_mocked_llm_is_audited_with_model_and_tokens(client, loader_conn):
+    good = {"title": "Care gaps", "summary": "Two measures.", "recommended_actions": [],
+            "limitations": [], "findings": [{
+                "statement": "36.4% of eligible hypertensive patients had no reading.",
+                "metric_refs": ["care_gaps.gap_pct"], "values_cited": [36.4]}]}
+    client.app.state.llm = FakeLLM(good)
+    client.app.state.settings.llm_model = "mock-model"
+    record = post_report(client).json()
+    assert (record["source"], record["model"], record["grounding"]["status"]) == (
+        "llm", "mock-model", "passed")
+    audit = last_audit(loader_conn)
+    assert (audit["outcome"], audit["model"], audit["total_tokens"]) == ("llm", "mock-model", 150)
+
+
+def test_identifier_in_the_data_blocks_the_request_and_is_logged(client, loader_conn, monkeypatch):
+    real = analyses_module.load_analysis
+
+    def with_ssn(pool, analysis):
+        data = real(pool, analysis)
+        data["tables"][0]["rows"][0]["measure"] = "SSN 123-45-6789"
+        return data
+    monkeypatch.setattr(analyses_module, "load_analysis", with_ssn)
+    response = post_report(client)
+    assert response.status_code == 422 and "Blocked" in response.json()["detail"]
+    audit = last_audit(loader_conn)
+    assert audit["outcome"] == "blocked" and audit["report_id"] is None
+    assert audit["redactions_outbound"] == {"ssn": 1}
+    assert "123-45-6789" not in response.text
+
+
+@pytest.mark.parametrize("statement", [
+    "SELECT * FROM app.audit_log",
+    "UPDATE app.audit_log SET outcome = 'llm'",
+    "DELETE FROM app.audit_log",
+    "UPDATE app.reports SET source = 'llm'",
+    "DELETE FROM app.reports",
+    "INSERT INTO app.name_token_hashes VALUES (repeat('0', 64))",
+])
+def test_app_role_cannot_read_or_rewrite_the_audit_trail(app_conn, statement):
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        app_conn.execute(statement)
+
+
+def test_name_hashes_cover_patient_names_but_not_data_words(loader_conn):
+    hashes = {h for (h,) in loader_conn.execute("SELECT token_hash FROM app.name_token_hashes")}
+    assert token_hash("mary", TEST_SALT) in hashes          # a fixture patient's name
+    assert token_hash("garcia", TEST_SALT) in hashes
+    assert token_hash("white", TEST_SALT) not in hashes     # race label in the published data
+    assert token_hash("will", TEST_SALT) not in hashes      # everyday word (common-word list)
+    raw = loader_conn.execute("SELECT count(*) FROM app.name_token_hashes "
+                              "WHERE token_hash IN ('mary', 'Mary')").fetchone()[0]
+    assert raw == 0                                          # only hashes are stored

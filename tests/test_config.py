@@ -10,6 +10,7 @@ TEST_KEY = "test-admin-key-0123456789"   # 25 characters
 def valid_env(monkeypatch):
     monkeypatch.setenv("APP_DB_PASSWORD", "test-db-password")
     monkeypatch.setenv("ADMIN_API_KEY", TEST_KEY)
+    monkeypatch.setenv("NAME_HASH_SALT", "test-name-hash-salt-0123456789")
 
 
 def load_settings() -> Settings:
@@ -23,7 +24,7 @@ def test_loads_when_required_secrets_present(valid_env):
     assert settings.groq_api_key is None  # the LLM key is optional
 
 
-@pytest.mark.parametrize("missing", ["APP_DB_PASSWORD", "ADMIN_API_KEY"])
+@pytest.mark.parametrize("missing", ["APP_DB_PASSWORD", "ADMIN_API_KEY", "NAME_HASH_SALT"])
 def test_refuses_to_start_without_required_secret(valid_env, monkeypatch, missing):
     monkeypatch.delenv(missing)
     with pytest.raises(ValidationError):
@@ -39,3 +40,11 @@ def test_rejects_empty_placeholder_or_short_admin_key(valid_env, monkeypatch, va
 
 def test_secrets_are_hidden_when_printed(valid_env):
     assert TEST_KEY not in repr(load_settings())
+
+
+def test_llm_is_optional_but_needs_both_key_and_model(valid_env, monkeypatch):
+    assert load_settings().llm_configured is False
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
+    assert load_settings().llm_configured is False      # no model yet
+    monkeypatch.setenv("LLM_MODEL", "some-model")
+    assert load_settings().llm_configured is True

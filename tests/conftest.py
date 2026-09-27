@@ -18,6 +18,10 @@ import db_setup  # noqa: E402
 import load_data  # noqa: E402
 
 TEST_DB = "carelens_test"
+# A fixed, throwaway salt so the name hashes built for the test database match what the app
+# uses in tests. Environment variables win over .env, so this never touches the real salt.
+TEST_SALT = "test-name-hash-salt-0123456789"
+os.environ["NAME_HASH_SALT"] = TEST_SALT
 FIXTURE_CSV = Path(__file__).parent / "fixtures" / "synthea_mini"
 
 
