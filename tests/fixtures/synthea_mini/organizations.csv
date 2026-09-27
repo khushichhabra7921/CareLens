@@ -1,0 +1,3 @@
+Id,NAME,ADDRESS,CITY,STATE,ZIP,LAT,LON,PHONE,REVENUE,UTILIZATION
+d0fd54b2-dbee-5f56-80a7-e4f95e1c1f6c,Example General Hospital,1 Example Way,Springfield,MA,01000,42.1,-72.5,555-0100,0.0,0
+9117e27a-86b1-56f6-a6ed-18be5b8e484d,Example Family Clinic,1 Example Way,Shelbyville,MA,01000,42.1,-72.5,555-0100,0.0,0
