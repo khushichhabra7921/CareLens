@@ -54,7 +54,7 @@ you do.
 ```
 aws login --region ap-south-1            # short-lived credentials, no access keys stored
 py -3.12 infra/deploy.py                 # create/verify everything (idempotent)
-py -3.12 infra/load_remote.py            # one-time data load over TLS (opens and re-closes RDS)
+py -3.12 infra/load_remote.py            # one-time data load through a private SSM tunnel
 py -3.12 infra/ops.py start              # before a demo (~5 min)
 py -3.12 infra/ops.py stop               # after it (nightly auto-stop is the safety net)
 py -3.12 infra/ops.py status             # state, credits left, spend this month
@@ -64,9 +64,12 @@ py -3.12 infra/teardown.py               # delete everything, including snapshot
 
 ## Security
 
-- RDS is never publicly accessible, except during `load_remote.py`, which opens it to one
-  IP (`/32`) and **always** closes it again in a `finally` block, then checks from this machine
-  that it is unreachable.
+- RDS is **never** publicly accessible, not even for the data load: `load_remote.py` opens an
+  SSM port-forwarding tunnel (laptop -> HTTPS -> the app server -> RDS), so no port is opened on
+  the internet and no IP allowlist is needed. The first design (temporarily public RDS + a `/32`
+  rule for this machine) failed because this network's public IP changed between creating the
+  rule and connecting (117.203.x -> 112.196.x); its `finally` block still locked RDS down and
+  confirmed it unreachable. Needs the Session Manager plugin for the AWS CLI.
 - TLS to RDS is enforced by the server (`rds.force_ssl`) and verified by the client
   (`verify-full` with AWS's CA bundle in the image).
 - Secrets live only in SSM Parameter Store (SecureString, KMS-encrypted) and, on the instance,
@@ -77,3 +80,14 @@ py -3.12 infra/teardown.py               # delete everything, including snapshot
   this repository, and can only push this image, record its tag and restart this instance.
 - Known gap: CloudFront to EC2 is plain HTTP inside AWS's network (the instance has no
   certificate of its own). CloudFront VPC origins would remove it; left as a next step.
+
+## Live URL
+
+The HTTPS URL comes from CloudFront. **Pending:** creating the distribution failed with *"Your
+account must be verified before you can add new CloudFront resources"*, a one-time check AWS
+applies to new accounts (a support case was requested on 2026-09-27). Until then the app is not
+reachable from the internet at all (its security group admits only CloudFront), and
+deployments are verified with a health check run on the server through SSM.
+
+When AWS confirms: `py -3.12 infra/ops.py start`, `py -3.12 infra/deploy.py --step cloudfront`,
+then `py -3.12 scripts/smoke_test.py <url>` and put the URL here and in the README.

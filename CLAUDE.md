@@ -59,6 +59,12 @@ The full brief is in the owner's Downloads/PROJECT_BRIEF.md. Decisions are logge
 - `.github/workflows/ci.yml`: lint, test (Postgres service, REQUIRE_DB=1, coverage floor 80%), docker smoke, codelens (non-blocking).
 - Pin actions by commit SHA and the runner by version. CI must pass without secrets or a Groq key.
 
+## AWS (M8)
+- Free plan, $100 credit, plan ends **2027-03-27**. On-demand: `infra/ops.py start|stop|status`; nightly auto-stop 23:30 IST.
+- `infra/deploy.py` is idempotent (`--step` to run one). Never make RDS public: load via `infra/load_remote.py` (SSM tunnel).
+- Never enable AWS Organizations / Control Tower / HIPAA account designation (auto-upgrades to the Paid plan).
+- Teardown: `infra/teardown.py`. Costs and runbook: `docs/DEPLOYMENT.md`.
+
 ## Files
 - All text files are UTF-8 without a BOM. Check with `py -3.12 scripts/check_encoding.py`.
 - `data/`, `tools/`, `.env` and `.venv/` are gitignored. Check with `git check-ignore -v <path>`.

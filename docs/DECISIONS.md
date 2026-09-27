@@ -302,3 +302,60 @@ Short log of why things are the way they are. Newest milestone at the bottom.
   Correct code wasn't rewritten to suit the tool. Once CodeLens is fixed, remove `continue-on-error`
   to make it a real gate. Its other notes (218 missing docstrings, 10 functions over 30 lines, 7 with
   more than 5 arguments) are style; mostly SQL-heavy loaders and test builders.
+## Milestone 8: Deploy on AWS (Free plan, Mumbai, on-demand)
+
+- **Account facts, read from the account, not assumed:** Free plan, $100 credit, plan ends
+  2027-03-27 (`aws freetier get-account-plan-state`). The Billing -> Credits page showed $0 and
+  doesn't list Free plan credits; the Free Tier page and the API do. On the Free plan the card
+  can't be charged, and the account closes when credits or time run out, so the goal is a large
+  margin rather than avoiding a bill. Credit activities overlapping this plan (EC2, RDS, Budgets)
+  are worth $20 each.
+- **Prices from the AWS Pricing API** (ap-south-1): RDS db.t4g.micro $0.021/h, EC2 t4g.micro
+  $0.0056/h, public IPv4 $0.005/h, RDS gp3 $0.131/GB-month, EBS gp3 $0.0912/GB-month. Always-on
+  would be ~$26.44/month (6 months ~ $159, all the credit), so by the owner's choice it runs
+  **on demand**: $3.37/month stopped, $0.0316/hour running, projected ~$26 in total by expiry.
+- **EC2, not App Runner:** App Runner is no longer open to new customers (AWS notice). EC2 in the
+  default VPC also avoids a NAT Gateway, since the app reaches Groq/ECR through its own public IP
+  and RDS stays private.
+- **Budget first**, measured **before** credits (`IncludeCredit=false`): with credits included,
+  a Free plan account's cost is always $0 and the $5/$15 alerts would never fire.
+- **CloudFront in front** for a free, stable HTTPS URL (the dashboard sends an admin key; the
+  on-demand server gets a new IP each start). The app accepts only requests carrying
+  CloudFront's secret `X-Origin-Verify` header (its security group can only say "any CloudFront
+  server"), and takes the rate-limit IP from the last entry CloudFront appends to
+  `X-Forwarded-For`.
+- **Secrets:** generated straight into SSM SecureStrings, passed to the CLI through self-deleting
+  temp files (never on the command line or left on disk), and on the server kept in a root-only
+  env file in `/run` (memory).
+- **Hardening:** no SSH or key pair (SSM instead), IMDSv2 with hop limit 1, standard (not
+  unlimited) CPU credits, RDS `rds.force_ssl=1` (checked) plus client `verify-full` with AWS's CA
+  bundle (108 roots, SHA-256 recorded), storage encrypted, no storage autoscaling, nightly
+  auto-stop at 23:30 IST (also covers RDS's automatic restart after 7 days stopped).
+- **Deploy role via GitHub OIDC**, only for `main` of this repo: push this image, record its tag,
+  restart this instance (tag-scoped `ssm:SendCommand`). The workflow runs only after CI succeeds
+  and is skipped until the role ARN is saved as a repo variable.
+- **Things that went wrong, and the fixes:**
+  - The account was created 2026-09-25 but EC2/RDS/SSM answered `OptInRequired` for ~42 hours
+    (activation); nothing was half-created, and the idempotent script resumed.
+  - CloudFront needs a separate account verification by AWS Support ("Your account must be
+    verified before you can add new CloudFront resources"); requested, pending.
+  - **Data load, first design failed safely:** RDS was made public with a `/32` rule for this
+    laptop, but the network's public IP changed (117.203.x -> 112.196.x) before connecting. The
+    `finally` block reverted it and confirmed RDS unreachable. **New design: an SSM
+    port-forwarding tunnel**, so RDS is never public and no IP rule is needed; libpq's
+    `hostaddr=127.0.0.1` plus `host=<endpoint>` keeps `verify-full` checking the real name.
+    Dry run with the fixture: 34 s end to end.
+  - `list-distributions` prints nothing when there are none, and `aws login` stores no default
+    region; both were handled in the CLI wrapper.
+- **ARM image:** the Graviton server needs `linux/arm64`; built locally with buildx/QEMU first
+  (158 s, psycopg with bundled libpq 18 works), and in CI the same way.
+
+## Milestone 9: Documentation and polish
+
+- **README** rewritten: problem, Mermaid architecture, how privacy is enforced, 3-command local run
+  (`load_data.py` now runs the idempotent `db_setup` itself), key findings with real numbers from
+  `export_findings.py`, the on-demand live demo, limitations and next steps.
+- **Dashboard screenshot** from headless Edge (a throwaway profile) against the local app. It
+  exposed two poor defaults: the readmissions chart opened on the fully suppressed "overall" slice,
+  and prevalence opened on asthma only because it's first alphabetically. Charts now open on a
+  configured slice (payer, diabetes), or on the first slice with visible values.
