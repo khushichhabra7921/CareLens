@@ -227,3 +227,50 @@ Short log of why things are the way they are. Newest milestone at the bottom.
   Single-row results are stat tiles, not one-bar charts. Every chart has a table view, and suppressed
   cells are labelled. The two chart colours passed the dataviz colour-blindness validator in light
   and dark mode. Checked in the browser at 1280 px and 375 px (no horizontal scroll).
+## Milestone 6: Privacy-safe LLM insight reports
+
+- **Primary control = data minimisation** (`app/privacy/minimize.py`): an explicit per-view column
+  allowlist, max 80 rows per table, dates reduced to year-month. A view or column nobody has reviewed
+  is never sent. The template fallback reads the same minimised payload.
+- **Redaction as defence in depth** (`app/privacy/redactor.py`) on both the outbound payload and the
+  model's answer: UUID, email, SSN, US phone, full dates (to year-month), 5-digit ZIPs (skipping
+  5-digit numbers that are known data values, e.g. a cost of 45200), and patient names.
+- **Fail closed:** any direct identifier (SSN, phone, email, UUID, name) in the *outbound* payload
+  blocks the request (HTTP 422, audit row `blocked`, nothing sent). Dates and ZIPs are generalised,
+  not blocked. In the *answer*, everything is masked and a second pass must find nothing, or the
+  answer is rejected.
+- **Names are matched by keyed hash** (HMAC-SHA256 with `NAME_HASH_SALT`, rather than plain
+  `sha256(salt + name)`, because HMAC is the standard keyed hash). Tokens are normalised (lower case,
+  accents stripped: José = Jose). The privileged `scripts/build_name_hashes.py` runs at the end of
+  every load. It **excludes words that appear in the published aggregate data** (otherwise race
+  "white" or payer "Blue Cross ..." would block real reports) **and a short list of everyday prose
+  words** ("will", "may", "rose"...). Real run: 4,705 name tokens, 29 excluded, 4,676 hashed. My first
+  draft of the common-word list wrongly included surnames such as Smith and Jones, which would have
+  switched off detection for the most common names; trimmed to prose words only.
+- **Prompt:** the system prompt says the data is untrusted and gives the exact JSON keys. The data
+  sits inside `<data-NONCE>` delimiters with a fresh random nonce per request, so text in the data
+  can't fake the closing tag. Temperature 0.2.
+- **Prompt-injection screen** (simple phrase patterns) on the data before sending (if it matches,
+  nothing is sent) and on the answer.
+- **LLM client = Python's `urllib`**, not an SDK: one POST, easy to explain, no hidden automatic
+  retries. Groq JSON mode (`response_format: json_object`). 20 s timeout. The pipeline makes at most
+  2 attempts. Error messages never contain the API key.
+- **Validation and grounding:** Pydantic `InsightReport`, then every number in `values_cited` and in
+  each statement must match a payload number, allowing for the precision written (so "66%" for 65.7
+  passes but "65.66%" doesn't), thousands separators, % and "million/billion/thousand". Numbers
+  written in the payload's own text (e.g. "12 months", "65-74") are allowed. `metric_refs` must name
+  a real `table.column`. Ungrounded findings are dropped; if more than half are dropped (or none
+  remain) grounding has "failed badly", which means retry, then template.
+- **Fallback reasons are recorded** in the audit log: `llm_not_configured`, `timeout`,
+  `llm_error: ...`, `invalid_json_or_schema`, `suspected_prompt_injection_in_data/response`,
+  `identifier_left_after_redaction`, `grounding_failed`.
+- **Audit log** is append-only for the app (INSERT only); report and audit row are written in one
+  transaction. Blocked requests get an audit row with no report.
+- **`NAME_HASH_SALT` is now a required secret** (20+ characters), like the admin key.
+- **Real-data check:** a report for all 8 analyses on the 5,722-patient data: no false-positive
+  redactions, no blocks, all grounded. The per-IP rate limit (5 per 10 min) stopped the 6th request
+  with HTTP 429, as designed.
+- **Tests with the LLM mocked** (`FakeLLM` plays back scripted answers or exceptions): the table of
+  redaction cases, blocking an injected SSN, name, email or UUID, a hallucinated number caught,
+  invalid JSON, schema errors, timeouts, HTTP errors and injection text all ending in the fallback, and
+  a bad answer then a good one. Coverage of the privacy and LLM modules is 98%. No test calls Groq.

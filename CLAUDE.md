@@ -48,6 +48,13 @@ The full brief is in the owner's Downloads/PROJECT_BRIEF.md. Decisions are logge
 - New DB objects the app needs: add to `REQUIRED_OBJECTS` in `app/main.py` and re-run `db_setup.py` on every database.
 - `tests/test_api.py::test_no_endpoint_returns_row_level_patient_data` must list every route.
 
+## LLM reports (M6)
+- Pipeline in `app/reports.py`: minimise (`app/privacy/minimize.py` allowlist) -> redact/fail closed -> prompt -> Groq -> validate -> redact answer -> ground -> store + audit. Template fallback on any failure.
+- A new analysis view is NOT sent to the LLM until its columns are added to `ALLOWED_COLUMNS`.
+- Never call Groq in tests: use `FakeLLM` from `tests/test_privacy_pipeline.py`.
+- `NAME_HASH_SALT` is required; name hashes are rebuilt by `load_data.py`. Don't add surnames to `COMMON_WORDS`.
+- Threat model and limitations: `docs/RESPONSIBLE_AI.md`. Keep it in sync with the code.
+
 ## Files
 - All text files are UTF-8 without a BOM. Check with `py -3.12 scripts/check_encoding.py`.
 - `data/`, `tools/`, `.env` and `.venv/` are gitignored. Check with `git check-ignore -v <path>`.
