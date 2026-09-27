@@ -9,9 +9,10 @@ import argparse
 
 from psycopg import sql
 
+import refresh_views
 from common import APP_ROLE, LOADER_ROLE, SQL_DIR, connect, settings
 
-SCHEMAS = ["phi", "analytics", "app", "loader"]
+SCHEMAS = ["phi", "analytics", "reporting", "app", "loader"]
 
 
 def create_database(dbname: str) -> None:
@@ -52,6 +53,8 @@ def create_schema(dbname: str, recreate: bool) -> None:
         for path in sorted((SQL_DIR / "schema").glob("*.sql")):
             conn.execute(path.read_text(encoding="utf-8"))
             print(f"Applied {path.name}")
+        refresh_views.rebuild(conn)  # the analysis views (empty until data is loaded)
+        print("Built the analysis views.")
 
 
 def setup(dbname: str, recreate: bool = False) -> None:

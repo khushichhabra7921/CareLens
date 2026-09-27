@@ -6,7 +6,8 @@ Steps, all inside ONE transaction (so a failed run leaves the previous data unto
   3. Check the staged row count equals the CSV row count.
   4. Empty the target tables, then run sql/load/transform.sql, which validates every row,
      inserts the good ones and records the bad ones (with a reason) in loader.rejected_rows.
-  5. Check loaded + rejected = CSV rows for every table, then commit.
+  5. Check loaded + rejected = CSV rows for every table.
+  6. Rebuild the analysis views in eporting, then commit.
 
 Usage (PowerShell, repo root):
     py -3.12 scripts/load_data.py                                   # data/raw/csv
@@ -21,6 +22,7 @@ from pathlib import Path
 import psycopg
 from psycopg import sql
 
+import refresh_views
 from common import REPO_ROOT, SQL_DIR, connect, settings
 from synthea_columns import HEADERS
 
@@ -126,6 +128,8 @@ def load(csv_dir: Path, dbname: str | None = None) -> dict:
         report["_reference_date"] = ref
         report["_rejected_by_reason"] = rejected_by_reason
         conn.execute("ANALYZE")  # fresh statistics so the query planner makes good choices
+        # Recompute the analysis views in the same transaction, so they always match the data.
+        refresh_views.rebuild(conn)
     return report
 
 
