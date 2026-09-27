@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # Database: the web app always connects as the read-only role.
-    db_host: str = "localhost"
+    db_host: str = "127.0.0.1"
     db_port: int = 5432
     postgres_db: str = "carelens"
     app_db_user: str = "app_readonly"

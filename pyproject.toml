@@ -6,6 +6,8 @@ requires-python = ">=3.12,<3.13"
 
 [tool.ruff]
 line-length = 100
+# Folders whose modules are our own code (scripts import each other as siblings).
+src = [".", "scripts", "tests/fixtures"]
 target-version = "py312"
 
 [tool.ruff.lint]
