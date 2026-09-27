@@ -1,0 +1,88 @@
+# Continuous deployment to AWS. Runs only after CI succeeds on a push to main (or by hand).
+# Authenticates with GitHub OIDC: AWS gives this job short-lived credentials for the
+# carelens-github-deploy role. No AWS access keys are stored in GitHub.
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # needed to request the OIDC token
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false   # never cut a deployment off halfway
+
+jobs:
+  deploy:
+    # Skipped until infra/deploy.py has created the role and its ARN is saved as the repo
+    # variable AWS_DEPLOY_ROLE_ARN (so CI pushes before then don't produce failed deploys).
+    if: >-
+      vars.AWS_DEPLOY_ROLE_ARN != '' && (github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-24.04
+    env:
+      AWS_REGION: ap-south-1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-south-1
+
+      - name: Work out the image name
+        id: image
+        run: |
+          registry="$(aws sts get-caller-identity --query Account --output text).dkr.ecr.$AWS_REGION.amazonaws.com"
+          tag="$(git rev-parse --short=12 HEAD)"
+          echo "registry=$registry" >> "$GITHUB_OUTPUT"
+          echo "ref=$registry/carelens:$tag" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to ECR
+        run: >-
+          aws ecr get-login-password |
+          docker login --username AWS --password-stdin "${{ steps.image.outputs.registry }}"
+
+      # The server is ARM (Graviton t4g). QEMU lets this x86 runner build an ARM image.
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1  # v4.4.0
+        with:
+          platforms: arm64
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069  # v4.4.1
+
+      - name: Build and push the ARM image
+        run: docker buildx build --platform linux/arm64 --tag "${{ steps.image.outputs.ref }}" --push .
+
+      - name: Record the new image tag (the server uses it at every start)
+        run: >-
+          aws ssm put-parameter --name /carelens/IMAGE_TAG --type String --overwrite
+          --value "${{ steps.image.outputs.tag }}"
+
+      - name: Restart the app if the server is running (on-demand: it is usually stopped)
+        id: restart
+        run: |
+          id=$(aws ec2 describe-instances \
+            --filters Name=tag:Name,Values=carelens-app Name=instance-state-name,Values=running \
+            --query 'Reservations[].Instances[].InstanceId' --output text)
+          if [ -z "$id" ]; then
+            echo "::notice::Server is stopped (on-demand). The next 'infra/ops.py start' uses this image."
+            echo "running=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          cmd=$(aws ssm send-command --instance-ids "$id" --document-name AWS-RunShellScript \
+            --parameters 'commands=["systemctl restart carelens"]' --query Command.CommandId --output text)
+          aws ssm wait command-executed --command-id "$cmd" --instance-id "$id"
+          echo "running=true" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test the live site
+        if: steps.restart.outputs.running == 'true'
+        run: |
+          url=$(aws ssm get-parameter --name /carelens/PUBLIC_URL --query Parameter.Value --output text)
+          python3 scripts/smoke_test.py "$url"
