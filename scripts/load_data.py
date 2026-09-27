@@ -22,6 +22,7 @@ from pathlib import Path
 import psycopg
 from psycopg import sql
 
+import build_name_hashes
 import refresh_views
 from common import REPO_ROOT, SQL_DIR, connect, settings
 from synthea_columns import HEADERS
@@ -84,6 +85,7 @@ def stage(conn: psycopg.Connection, path: Path, table: str, header: list[str]) -
 def load(csv_dir: Path, dbname: str | None = None) -> dict:
     """Load every table; returns {table: {"csv": n, "loaded": n, "rejected": n}}."""
     report = {}
+    salt = build_name_hashes.salt_or_exit()   # check before doing any work
     with connect("loader", dbname=dbname) as conn:  # commits on success, rolls back on error
         conn.execute("SET LOCAL timezone = 'UTC'")
         for table in TARGETS:
@@ -130,6 +132,8 @@ def load(csv_dir: Path, dbname: str | None = None) -> dict:
         conn.execute("ANALYZE")  # fresh statistics so the query planner makes good choices
         # Recompute the analysis views in the same transaction, so they always match the data.
         refresh_views.rebuild(conn)
+        # Name hashes for the redactor, after the views (their words are excluded from it).
+        report["_name_hashes"] = build_name_hashes.rebuild(conn, salt)
     return report
 
 
@@ -145,6 +149,7 @@ def print_report(report: dict) -> None:
             print(f"  {table:<14} {reason:<30} {n:>7,}")
     else:
         print("No rows rejected.")
+    print(f"Name-token hashes: {report['_name_hashes']}")
 
 
 def main() -> None:

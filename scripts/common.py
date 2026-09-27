@@ -32,6 +32,7 @@ class DbSettings(BaseSettings):
     postgres_password: SecretStr | None = None
     loader_password: SecretStr | None = None
     app_db_password: SecretStr | None = None
+    name_hash_salt: SecretStr | None = None
 
 
 def settings() -> DbSettings:
