@@ -476,7 +476,7 @@ def step_github() -> None:
         # Only workflows running on the main branch of this one repository.
         "Condition": {"StringEquals": {
             f"{OIDC_HOST}:aud": "sts.amazonaws.com",
-            f"{OIDC_HOST}:sub": f"repo:{c.GITHUB_REPO}:ref:refs/heads/{c.GITHUB_BRANCH}"}}}]}
+            f"{OIDC_HOST}:sub": f"{c.GITHUB_SUB_PREFIX}:ref:refs/heads/{c.GITHUB_BRANCH}"}}}]}
     arn = ensure_role(c.DEPLOY_ROLE, trust, "GitHub Actions deploys CareLens")
     aws("iam", "update-assume-role-policy", "--role-name", c.DEPLOY_ROLE,
         "--policy-document", json.dumps(trust), region="us-east-1")

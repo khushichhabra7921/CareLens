@@ -51,6 +51,10 @@ ORIGIN_READ_TIMEOUT_SECONDS = 60   # an LLM report can take ~40 s (2 attempts x 
 # --- CI/CD
 GITHUB_REPO = "khushichhabra7921/CareLens"
 GITHUB_BRANCH = "main"
+# GitHub's OIDC "sub" claim for this repo uses IMMUTABLE ids (owner@id/repo@id), so a deleted and
+# re-created repo with the same name can't assume the role. Read it with:
+#   gh api repos/khushichhabra7921/CareLens/actions/oidc/customization/sub
+GITHUB_SUB_PREFIX = "repo:khushichhabra7921@215480548/CareLens@1389916851"
 DEPLOY_ROLE = "carelens-github-deploy"
 
 # --- cost guard: stop everything nightly in case a demo was left running (23:30 IST)
