@@ -11,8 +11,8 @@
 //   exclude: rows to leave out of the chart (they stay in the table).
 const CHARTS = {
   population_overview: { x: "category", y: "patients", filter: "dimension", horizontal: true },
-  chronic_disease_prevalence: { x: "age_band", y: "prevalence_pct", series: "gender", filter: "condition" },
-  readmissions_30day: { x: "category", y: "readmission_rate_pct", filter: "dimension", horizontal: true },
+  chronic_disease_prevalence: { x: "age_band", y: "prevalence_pct", series: "gender", filter: "condition", initial: "diabetes" },
+  readmissions_30day: { x: "category", y: "readmission_rate_pct", filter: "dimension", horizontal: true, initial: "payer" },
   ed_visits_per_1000: { x: "period_end", y: "visits_per_1000", line: true },
   ed_frequent_users: { tiles: [["frequent_user_pct", "of ED users had 4+ visits", "%"],
                                ["frequent_user_visit_pct", "of ED visits were by frequent users", "%"],
@@ -191,8 +191,13 @@ function chartView(table, config) {
     select.addEventListener("change", () => draw(select.value));
     wrapper.append(el("label", { class: "controls" }, el("span", { text: niceName(config.filter) }), select));
   }
+  // Open on the configured slice, else the first one that has any visible (unsuppressed) value.
+  const hasValues = (s) => chartRows(table, config, s).some((r) => r[config.y] !== null);
+  const first = slices.includes(config.initial) ? config.initial : (slices.find(hasValues) ?? slices[0]);
+  const select = wrapper.querySelector("select");
+  if (select) select.value = first;
   wrapper.append(box, note);
-  draw(slices[0]);
+  draw(first);
   return wrapper;
 }
 
