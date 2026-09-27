@@ -4,7 +4,7 @@ Downloads a pinned Synthea release into tools/ (checking its SHA-256), then runs
 with fixed seeds and a fixed reference date, writing CSVs to data/raw/csv/.
 
 Usage (PowerShell, from the repo root):
-    py -3.12 scripts/generate_data.py                 # 1,000 patients
+    py -3.12 scripts/generate_data.py                 # 5,000 living patients (the project dataset)
     py -3.12 scripts/generate_data.py -p 200          # smaller population
     py -3.12 scripts/generate_data.py --force         # replace existing data/raw
 """
@@ -88,7 +88,8 @@ def build_command(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("-p", "--population", type=int, default=1000)
+    # 5,000 (not 1,000): with 1,000, too many analysis cells fell in the suppressed 1-10 range.
+    parser.add_argument("-p", "--population", type=int, default=5000)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--reference-date", default="20250101", help="YYYYMMDD")
     parser.add_argument("--state", default="Massachusetts")
