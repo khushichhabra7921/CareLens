@@ -25,7 +25,14 @@ from app.db import create_pool
 from app.llm.client import GroqClient
 from app.privacy.redactor import Redactor
 from app.report_schema import ReportRecord
-from app.security import DASHBOARD_CSP, SECURITY_HEADERS, RateLimiter, check_api_key, client_ip
+from app.security import (
+    DASHBOARD_CSP,
+    SECURITY_HEADERS,
+    RateLimiter,
+    check_api_key,
+    client_ip,
+    origin_verified,
+)
 
 STATIC_DIR = Path(__file__).parent / "static"
 log = logging.getLogger("carelens")
@@ -57,6 +64,9 @@ app = FastAPI(title="CareLens", lifespan=lifespan)
 
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
+    # On AWS the app must only be reachable through CloudFront, which adds a secret header.
+    if not origin_verified(request):
+        return JSONResponse(status_code=403, content={"detail": "Forbidden."})
     response = await call_next(request)
     response.headers.update(SECURITY_HEADERS)
     if request.url.path == "/" or request.url.path.startswith("/static/"):

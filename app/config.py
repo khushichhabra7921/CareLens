@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     db_port: int = 5432
     postgres_db: str = "carelens"
     db_sslmode: str = "prefer"   # "verify-full" against RDS
+    db_sslrootcert: str | None = None   # CA bundle for verify-full: app/certs/rds-global-bundle.pem
     app_db_user: str = "app_readonly"
     app_db_password: SecretStr  # required, no default
 
@@ -27,6 +28,11 @@ class Settings(BaseSettings):
     # Per client IP: at most this many report requests per window (protects the LLM quota).
     reports_rate_limit: int = 5
     reports_rate_window_seconds: int = 600
+
+    # Behind CloudFront (AWS): take the client IP from X-Forwarded-For for the rate limit, and
+    # reject requests that don't carry CloudFront's secret header. Both off for local runs.
+    trust_proxy_headers: bool = False
+    origin_verify_secret: SecretStr | None = None
 
     # How long analysis results are cached in memory. They only change when data is loaded.
     cache_ttl_seconds: int = 300

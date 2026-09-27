@@ -15,6 +15,7 @@ def create_pool(settings: Settings) -> ConnectionPool:
         user=settings.app_db_user,
         password=settings.app_db_password.get_secret_value(),
         sslmode=settings.db_sslmode,
+        **({"sslrootcert": settings.db_sslrootcert} if settings.db_sslrootcert else {}),
         connect_timeout=10,
         application_name="carelens-api",
     )

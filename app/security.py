@@ -48,7 +48,28 @@ class RateLimiter:
 
 
 def client_ip(request: Request) -> str:
+    """The visitor's IP address, for the rate limit.
+
+    Behind CloudFront every request arrives from a CloudFront server, so with
+    TRUST_PROXY_HEADERS we use X-Forwarded-For instead. CloudFront APPENDS the real viewer IP
+    to that header, so the last entry is the one CloudFront added; anything before it could
+    have been typed by the client and is ignored. Only safe because the app can be reached
+    through CloudFront alone (security group + origin secret header)."""
+    if request.app.state.settings.trust_proxy_headers:
+        forwarded = request.headers.get("X-Forwarded-For", "")
+        last = forwarded.split(",")[-1].strip()
+        if last:
+            return last
     return request.client.host if request.client else "unknown"
+
+
+def origin_verified(request: Request) -> bool:
+    """True unless ORIGIN_VERIFY_SECRET is set and the request lacks CloudFront's header."""
+    secret = request.app.state.settings.origin_verify_secret
+    if secret is None:
+        return True
+    given = request.headers.get("X-Origin-Verify", "")
+    return secrets.compare_digest(given.encode(), secret.get_secret_value().encode())
 
 
 # Sent with every response. The Content-Security-Policy only allows scripts, styles and
