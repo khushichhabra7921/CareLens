@@ -14,6 +14,7 @@ load_data.py rebuilds automatically at the end of every load.
 """
 
 import argparse
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -72,6 +73,11 @@ def rebuild(conn: psycopg.Connection) -> None:
         conn.execute(sql.SQL("DROP MATERIALIZED VIEW IF EXISTS {}").format(name))
         query = a.path.read_text(encoding="utf-8")
         conn.execute(sql.SQL("CREATE MATERIALIZED VIEW {} AS {}").format(name, sql.SQL(query)))
+        # Store the header on the view, so the web app can show the title and question
+        # without needing the SQL files. The SQL file stays the single source of truth.
+        meta = json.dumps({**a.header, "file": a.path.name})
+        conn.execute(sql.SQL("COMMENT ON MATERIALIZED VIEW {} IS {}").format(
+            name, sql.Literal(meta)))
     # Default privileges already cover new views; granting explicitly as well keeps it obvious.
     conn.execute("GRANT SELECT ON ALL TABLES IN SCHEMA reporting TO app_readonly")
 
