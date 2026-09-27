@@ -28,3 +28,44 @@ Short log of why things are the way they are. Newest milestone at the bottom.
   and switching removes the warning. It's a dev-only dependency.
 - **`scripts/check_encoding.py`** fails if any tracked text file isn't UTF-8 or starts with a
   BOM. It guards against the UTF-16 `.gitignore` problem that broke an earlier repo, and it will run in CI.
+
+## Milestone 2: Synthetic patients with Synthea
+
+- **Pinned Synthea v4.0.0** (not `master-branch-latest`) with a SHA-256 check. The "latest" jar changes
+  over time, so the same seed would stop producing the same patients. If the checksum doesn't
+  match, the script deletes the jar and stops, so we never run code we can't verify. (Oddly, the
+  jar reports itself internally as `v3.4.0-18-ga07a65555`, but it is the asset published under the v4.0.0 tag.)
+- **`-e 20250101` added on top of `-r 20250101`.** Found by checking the data: with only `-r`, the latest
+  encounter was 2026-10-14 and the run metadata said `endTime: 20260926` (the day of the run).
+  `-r` only sets the date used to calculate ages; the simulation still ran until the real current date.
+  With `-e`, the latest encounter starts on 2024-12-31.
+- **Reproducibility, checked:** two runs with identical settings gave the same rows in 16 of 18 CSVs
+  (row order differs because Synthea uses 12 threads, which a database doesn't care about).
+  Only `claims_transactions` (not loaded) and the payer **summary totals** (`AMOUNT_COVERED`,
+  `REVENUE`, …, about 0.02% apart) differ. So we load only `Id`, `NAME` and `OWNERSHIP` from payers
+  and calculate all costs from the encounter rows.
+- **Result of the default run:** 1,155 patients (1,000 alive + 155 deceased; `-p` counts living
+  patients only). The main tables are encounters (70,597 rows), observations (870,136), conditions (40,330)
+  and medications (51,302), 693 MB of CSV in total.
+- **FHIR fully off.** `exporter.fhir.export=false` alone still writes hospital and practitioner FHIR files,
+  so those two are switched off as well.
+- **Real-looking names** (`generate.append_numbers_to_person_names=false`). The default adds digits
+  (`Jose871`), which would make the name redactor's job unrealistically easy. The data contains 2,077 distinct
+  name tokens, 50 name fields with non-ASCII letters, and tokens that are everyday words
+  (`Will`, `Mark`, `Grant`, `Long`, `Young`, `White`), a known false-positive risk for M6.
+- **The wiki data dictionary is out of date for v4.0.0.** Differences found in the real files:
+  immunizations use `BASE_COST` (not `COST`); 26,844 observations (QALY/DALY-style) have **no
+  encounter**; conditions include **897 ICD-10** codes as well as SNOMED-CT (a new `SYSTEM` column);
+  payer ownership includes `NO_INSURANCE`; the patient county column is `FIPS`. The schema follows the
+  real files, and a test compares the fixture headers with the generated headers.
+- **Clinical codes found in the data** (not guessed): HbA1c LOINC `4548-4`, systolic/diastolic BP
+  `8480-6`/`8462-4`, essential hypertension SNOMED `59621000`, flu vaccine CVX `140` (the only
+  influenza code in this run), ED encounter class `emergency`, inpatient class `inpatient`.
+- **Test fixture = a small Python builder** (`tests/fixtures/build_fixture.py`), not hand-typed CSVs.
+  It writes Synthea-format CSVs with the exact v4.0.0 headers. Patients are invented by hand (SSNs start
+  with `999`, which is never issued), while the clinical codes are real. Deterministic UUIDs (`uuid5`) mean the
+  same patient always gets the same ID. A test fails if the committed CSVs don't match the builder.
+  It currently covers structural edge cases (90+, deceased, infant, non-ASCII name, everyday-word
+  names, missing optional fields, an observation without an encounter, ICD-10, CDT, uninsured). **In M4
+  we'll add cohorts larger than 10**, because small-cell suppression would otherwise turn every count into NULL
+  and there would be nothing to check by hand.

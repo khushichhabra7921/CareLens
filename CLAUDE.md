@@ -24,6 +24,12 @@ The full brief is in the owner's Downloads/PROJECT_BRIEF.md. Decisions are logge
 - Never guess clinical codes. Look them up in the data or in official sources.
 - Secrets live only in env vars / `.env` (gitignored). `.env.example` is committed. The app refuses to start if a secret is missing.
 
+## Data generation
+- `scripts/generate_data.py`: Synthea v4.0.0 pinned + SHA-256; seeds 42; `-r` **and** `-e` 20250101 (without `-e` the output changes daily).
+- Follow the real CSV headers, not the wiki (see DECISIONS M2). Don't load payer summary totals; they aren't reproducible.
+- Test fixture: edit `tests/fixtures/build_fixture.py`, then run it; never hand-edit `synthea_mini/*.csv`.
+- Local Docker Postgres is on host port **5433** (5432 is taken by another install).
+
 ## Files
 - All text files are UTF-8 without a BOM. Check with `py -3.12 scripts/check_encoding.py`.
 - `data/`, `tools/`, `.env` and `.venv/` are gitignored. Check with `git check-ignore -v <path>`.
